@@ -1,15 +1,22 @@
 <!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
-    <id>com.github.iammohdzaki.jsonbox</id>
+    <id>com.zaki.jsonbox</id>
     <name>JsonBox</name>
-    <vendor>iammohdzaki</vendor>
+    <vendor>Mohammad Zaki</vendor>
+    <description>A handy IntelliJ plugin to format, minify, stringify, and diff JSON effortlessly — all within your editor.</description>
 
     <depends>com.intellij.modules.platform</depends>
 
-    <resource-bundle>messages.MyBundle</resource-bundle>
-
+    <actions>
+        <group id="JsonBoxGroup" text="JsonBox" description="JsonBox Tools" popup="true">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <action id="JsonBox.ShowPopupAction"
+                    class="com.github.iammohdzaki.jsonbox.actions.OpenJsonParserDialogAction"
+                    text="Open JsonBox"
+                    description="Open JsonBox popup to format, minify, stringify or diff JSON"/>
+        </group>
+    </actions>
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow factoryClass="com.github.iammohdzaki.jsonbox.toolWindow.MyToolWindowFactory" id="MyToolWindow"/>
-        <postStartupActivity implementation="com.github.iammohdzaki.jsonbox.startup.MyProjectActivity" />
+        <editorNotificationProvider implementation="com.github.iammohdzaki.jsonbox.JsonBoxNotificationProvider"/>
     </extensions>
 </idea-plugin>
