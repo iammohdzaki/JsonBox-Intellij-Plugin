@@ -17,6 +17,15 @@ jobs:
       contents: write
       pull-requests: write
     steps:
+      - name: Maximize Build Space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: true
 
       # Check out the current repository
       - name: Fetch Sources

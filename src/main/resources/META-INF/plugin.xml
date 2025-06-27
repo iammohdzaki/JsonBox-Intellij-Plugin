@@ -6,6 +6,7 @@
     <description>A handy IntelliJ plugin to format, minify, stringify, and diff JSON effortlessly — all within your editor.</description>
 
     <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.json</depends>
 
     <actions>
         <group id="JsonBoxGroup" text="JsonBox" description="JsonBox Tools" popup="true">
