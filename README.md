@@ -1,8 +1,12 @@
-<p align="center">
-  <img src="https://github.com/iammohdzaki/JsonBox/blob/main/src/main/resources/META-INF/pluginIcon.svg" alt="JsonBox Logo" width="128"/>
-</p>
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://github.com/iammohdzaki/JsonBox/blob/main/src/main/resources/META-INF/pluginIconLight.svg">
+    <img alt="JsonBox logo" src="https://github.com/iammohdzaki/JsonBox/blob/main/src/main/resources/META-INF/pluginIcon.svg" width="40%">
+  </picture>
+</div>
+<br><br>
 
-<h1 align="center">JsonBox – JSON Tools for IntelliJ IDEA</h1>
+<h1 align="center">JsonBox – A Plugin for IntelliJ IDEA</h1>
 
 <p align="center">
   Format, validate, minify, and diff JSON directly within your IDE.<br/>
@@ -10,14 +14,19 @@
 </p>
 
 ---
+<div align="center">
 
 ![Build](https://github.com/iammohdzaki/JsonBox/workflows/Build/badge.svg)
 [![Version](https://img.shields.io/jetbrains/plugin/v/MARKETPLACE_ID.svg)](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID)
 [![Downloads](https://img.shields.io/jetbrains/plugin/d/MARKETPLACE_ID.svg)](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID)
+[![GitHub Repo stars](https://img.shields.io/github/stars/iammohdzaki/JsonBox?style=flat-square)](https://github.com/iammohdzaki/JsonBox/stargazers)
+[![GitHub Release](https://img.shields.io/github/v/release/iammohdzaki/JsonBox)](https://github.com/iammohdzaki/JsonBox/releases)
+
+</div>
 
 <!-- Plugin description -->
 **JsonBox** is a smart, floating JSON toolbox built into IntelliJ IDEA. It helps developers format, validate, minify,
-copy, and compare JSON with ease — all inside the IDE.
+copy, and stringify JSON with ease — all inside the IDE.
 
 Whether you're debugging APIs, working with JSON config, or cleaning data, JsonBox helps you work faster with:
 
@@ -27,8 +36,6 @@ Whether you're debugging APIs, working with JSON config, or cleaning data, JsonB
 - 🔄 Quick diffing support (coming soon)
 - 🪟 Non-docked, floating UI accessible from `Tools > Open JsonBox`
 
-This section is used to generate the plugin description for JetBrains Marketplace. To keep everything working, do not
-remove `<!-- ... -->` sections.
 <!-- Plugin description end -->
 
 ---
