@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="resources/META-INF/pluginIcon.svg" alt="JsonBox Logo" width="128"/>
+  <img src="https://github.com/iammohdzaki/JsonBox/blob/main/src/main/resources/META-INF/pluginIcon.svg" alt="JsonBox Logo" width="128"/>
 </p>
 
 <h1 align="center">JsonBox – JSON Tools for IntelliJ IDEA</h1>
