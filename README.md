@@ -1,12 +1,10 @@
 <div align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://github.com/iammohdzaki/JsonBox/blob/main/src/main/resources/META-INF/pluginIconLight.svg">
-    <img alt="JsonBox logo" src="https://github.com/iammohdzaki/JsonBox/blob/main/src/main/resources/META-INF/pluginIcon.svg" width="40%">
+    <img alt="JsonBox logo" src="https://github.com/iammohdzaki/JsonBox/blob/main/src/main/resources/META-INF/pluginIcon.svg" width="15%">
   </picture>
+  <h1 align="center">JsonBox – A Plugin for IntelliJ IDEA</h1>
 </div>
-<br><br>
-
-<h1 align="center">JsonBox – A Plugin for IntelliJ IDEA</h1>
 
 <p align="center">
   Format, validate, minify, and diff JSON directly within your IDE.<br/>
@@ -17,8 +15,8 @@
 <div align="center">
 
 ![Build](https://github.com/iammohdzaki/JsonBox/workflows/Build/badge.svg)
-[![Version](https://img.shields.io/jetbrains/plugin/v/MARKETPLACE_ID.svg)](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID)
-[![Downloads](https://img.shields.io/jetbrains/plugin/d/MARKETPLACE_ID.svg)](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID)
+[![Version](https://img.shields.io/jetbrains/plugin/v/27770.svg)](https://plugins.jetbrains.com/plugin/27770)
+[![Downloads](https://img.shields.io/jetbrains/plugin/d/27770.svg)](https://plugins.jetbrains.com/plugin/27770)
 [![GitHub Repo stars](https://img.shields.io/github/stars/iammohdzaki/JsonBox?style=flat-square)](https://github.com/iammohdzaki/JsonBox/stargazers)
 [![GitHub Release](https://img.shields.io/github/v/release/iammohdzaki/JsonBox)](https://github.com/iammohdzaki/JsonBox/releases)
 
@@ -30,13 +28,16 @@ copy, and stringify JSON with ease — all inside the IDE.
 
 Whether you're debugging APIs, working with JSON config, or cleaning data, JsonBox helps you work faster with:
 
-- ✨ One-click formatting and minification
-- ✅ Structural validation with feedback
-- 🔗 Clipboard copy in both pretty and compact formats
-- 🔄 Quick diffing support (coming soon)
-- 🪟 Non-docked, floating UI accessible from `Tools > Open JsonBox`
+- One-click formatting and minification
+- Structural validation with feedback
+- Clipboard copy in both pretty and compact formats
+- Quick diffing support (coming soon)
+- Non-docked, floating UI accessible from `Tools > Open JsonBox`
 
 <!-- Plugin description end -->
+
+<a href="https://github.com/iammohdzaki/JsonBox/issues/new?assignees=&labels=bug&projects=&template=bug_report.md&title=%F0%9F%90%9B+Bug+Report%3A+">
+Report Bug</a>
 
 ---
 
