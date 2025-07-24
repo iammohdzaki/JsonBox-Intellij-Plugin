@@ -23,9 +23,21 @@ object JsonUtils {
         false
     }
 
-    fun toSingleLineJson(json: String): String? = try {
+    fun stringifyJson(json: String): String? = try {
         val obj = objectMapper.readTree(json)
         objectMapper.writeValueAsString(obj.toString())
+    } catch (e: Exception) {
+        null
+    }
+
+    fun deStringifyJson(json: String): String? = try {
+        val unescaped = json.trim().removeSurrounding("\"")
+            .replace("\\n", "\n")
+            .replace("\\t", "\t")
+            .replace("\\\"", "\"")
+            .replace("\\\\", "\\")
+        val obj = objectMapper.readTree(unescaped)
+        objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(obj)
     } catch (e: Exception) {
         null
     }
