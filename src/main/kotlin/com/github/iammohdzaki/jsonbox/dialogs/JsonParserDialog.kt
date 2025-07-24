@@ -24,12 +24,14 @@ class JsonParserDialog(private val initialText: String = "") : DialogWrapper(tru
 
     private val formatButton = JButton("Format")
 
-    private val copyButton = JButton("Copy JSON")
+    private val stringifyButton = JButton("Stringify")
 
-    private val copySingleLineButton = JButton("Copy as Single Line")
+    private val deStringifyButton = JButton("DeStringify")
+
+    private val copyButton = JButton("Copy")
 
     init {
-        title = "JSON Parser"
+        title = "JSON Box"
         init()
     }
 
@@ -46,11 +48,11 @@ class JsonParserDialog(private val initialText: String = "") : DialogWrapper(tru
         val buttonPanel = JBPanel<JBPanel<*>>(FlowLayout(FlowLayout.CENTER, 10, 10))
         buttonPanel.add(validateButton)
         buttonPanel.add(formatButton)
+        buttonPanel.add(stringifyButton)
+        buttonPanel.add(deStringifyButton)
         buttonPanel.add(copyButton)
-        buttonPanel.add(copySingleLineButton)
 
         panel.add(buttonPanel, BorderLayout.SOUTH)
-
 
         validateButton.addActionListener {
             val isValid = JsonUtils.validateJson(textArea.text)
@@ -69,19 +71,27 @@ class JsonParserDialog(private val initialText: String = "") : DialogWrapper(tru
             }
         }
 
-        copyButton.addActionListener {
-            CopyPasteManager.getInstance().setContents(StringSelection(textArea.text))
-            Messages.showInfoMessage("JSON copied to clipboard", "Copy JSON")
-        }
-
-        copySingleLineButton.addActionListener {
-            val singleLineJson = JsonUtils.toSingleLineJson(textArea.text)
+        stringifyButton.addActionListener {
+            val singleLineJson = JsonUtils.stringifyJson(textArea.text)
             if (singleLineJson != null) {
-                CopyPasteManager.getInstance().setContents(StringSelection(singleLineJson))
-                Messages.showInfoMessage("Single-line JSON copied to clipboard", "Copy JSON")
+                textArea.text = singleLineJson
             } else {
                 Messages.showErrorDialog("Invalid JSON", "Error")
             }
+        }
+
+        deStringifyButton.addActionListener {
+            val deStringifyJson = JsonUtils.deStringifyJson(textArea.text)
+            if (deStringifyJson != null) {
+                textArea.text = deStringifyJson
+            } else {
+                Messages.showErrorDialog("Invalid JSON", "Error")
+            }
+        }
+
+        copyButton.addActionListener {
+            CopyPasteManager.getInstance().setContents(StringSelection(textArea.text))
+            Messages.showInfoMessage("JSON copied to clipboard", "Copy JSON")
         }
 
         return panel
