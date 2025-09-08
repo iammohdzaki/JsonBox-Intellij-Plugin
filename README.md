@@ -26,6 +26,8 @@
 **JsonBox** is a smart, floating JSON toolbox built into IntelliJ IDEA. It helps developers format, validate, minify,
 copy, and stringify JSON with ease — all inside the IDE.
 
+<img src="preview/features.png" alt="Features"/>
+
 Whether you're debugging APIs, working with JSON config, or cleaning data, JsonBox helps you work faster with:
 
 - One-click formatting and minification
