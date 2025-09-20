@@ -9,7 +9,7 @@
     <depends>com.intellij.modules.json</depends>
 
     <actions>
-        <group id="JsonBoxGroup" text="JsonBox" description="JsonBox Tools" popup="true">
+        <group id="JsonBoxGroup" text="JsonBox" description="Open a JSON file in JsonBox" popup="true">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
             <action id="JsonBox.ShowPopupAction"
                     class="com.github.iammohdzaki.jsonbox.actions.OpenJsonParserDialogAction"
@@ -18,6 +18,7 @@
         </group>
     </actions>
     <extensions defaultExtensionNs="com.intellij">
-        <editorNotificationProvider implementation="com.github.iammohdzaki.jsonbox.JsonBoxNotificationProvider"/>
+        <editorNotificationProvider
+                implementation="com.github.iammohdzaki.jsonbox.notification.JsonBoxNotificationProvider"/>
     </extensions>
 </idea-plugin>
