@@ -100,7 +100,7 @@ class JsonBoxDialog(
     }
 
     // Save button: saves JSON to disk only when clicked; uses VirtualFile
-    private val saveButton = ButtonFactory.createDefaultButton("Save", AllIcons.Actions.AddFile) {
+    private val saveButton = ButtonFactory.createDefaultButton("Save", AllIcons.Debugger.ThreadStates.Idle) {
         if (virtualFile != null) {
             runWriteAction {
                 virtualFile.setBinaryContent(editor.document.text.toByteArray())
@@ -129,6 +129,11 @@ class JsonBoxDialog(
         Messages.showInfoMessage("JSON copied to clipboard", "Copy JSON")
     }
 
+    private val compareButton = ButtonFactory.createNormalButton("Compare JSON", AllIcons.Actions.Diff) {
+        showEditableJsonCompareDialog(project, virtualFile)
+    }
+
+
     // -------------------
     // Initialization
     // -------------------
@@ -149,11 +154,12 @@ class JsonBoxDialog(
         val buttonPanel = JBPanel<JBPanel<*>>(FlowLayout(FlowLayout.CENTER, 10, 10))
         buttonPanel.add(validateButton)
         buttonPanel.add(formatButton)
+        buttonPanel.add(compareButton)
         buttonPanel.add(stringifyButton)
         buttonPanel.add(deStringifyButton)
         buttonPanel.add(copyButton)
         buttonPanel.add(saveButton)
-        buttonPanel.add(searchButton, 0) // Place Search button first in the flow
+        buttonPanel.add(searchButton, 0)
 
         panel.add(buttonPanel, BorderLayout.SOUTH)
         return panel
