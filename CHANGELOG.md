@@ -3,6 +3,9 @@
 # JsonBox Changelog
 
 ## [Unreleased]
+
+## [0.0.4] - 2025-09-20
+
 ### Added
 
 - Replaced the basic text area with a **full-featured JSON editor** that shows line numbers, highlights syntax, and lets
@@ -21,3 +24,6 @@
 - Fixed issues with stringifying and de-stringifying multiple times
 - Made **Format** button work for both new JSON and files already in the project
 - Improved overall layout and spacing for better usability
+
+[Unreleased]: https://github.com/iammohdzaki/JsonBox/compare/v0.0.4...HEAD
+[0.0.4]: https://github.com/iammohdzaki/JsonBox/commits/v0.0.4
