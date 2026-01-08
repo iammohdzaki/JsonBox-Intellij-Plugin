@@ -7,6 +7,7 @@
 </div>
 
 <p align="center">
+  Just <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Q</kbd> <br/>
   Format, validate, minify, and diff JSON directly within your IDE.<br/>
   A fast and lightweight tool for developers working with JSON.
 </p>
@@ -23,8 +24,8 @@
 </div>
 
 <!-- Plugin description -->
-**JsonBox** is a smart, floating JSON toolbox built into IntelliJ IDEA. It helps developers format, validate, minify,
-copy, and stringify JSON with ease — all inside the IDE.
+JsonBox is a smart, floating JSON toolbox built into IntelliJ IDEA. It helps developers format, validate, minify, copy,
+and stringify JSON with ease — all inside the IDE.
 
 Whether you're debugging APIs, working with JSON config, or cleaning data, JsonBox helps you work faster with:
 
@@ -32,8 +33,8 @@ Whether you're debugging APIs, working with JSON config, or cleaning data, JsonB
 - Structural validation with feedback
 - Clipboard copy in both pretty and compact formats
 - Quick diffing support to compare JSON side by side
-- Save and manage JSON snippets with Quick List
-- Non-docked, floating UI accessible from `Tools > Open JsonBox`
+- **Quick List**: Save and manage JSON snippets effortlessly. Access it via `Tools > JsonBox > JsonBox Quick List` or
+  use the shortcut <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Q</kbd>.
 
 <!-- Plugin description end -->
 
@@ -66,7 +67,10 @@ Download from [GitHub Releases](https://github.com/iammohdzaki/JsonBox/releases/
 
 ## 🖼 Plugin Preview
 
-<img src="preview/previewPlugin.png" alt="JsonBox Logo"/>
+<img src="preview/notification.png" alt="JsonBox Logo"/>
+<img src="preview/quicklist_dialog.png" alt="JsonBox Logo"/>
+<img src="preview/jsonbox_dialog.png" alt="JsonBox Logo"/>
+<img src="preview/diff_dialog.png" alt="JsonBox Logo"/>
 
 ---
 
@@ -79,4 +83,5 @@ Made with ❤️ by [Mohammad Zaki]. Contributions welcome!
 Plugin based on the [IntelliJ Platform Plugin Template][template].
 
 [template]: https://github.com/JetBrains/intellij-platform-plugin-template
+
 [docs:plugin-description]: https://plugins.jetbrains.com/docs/intellij/plugin-user-experience.html#plugin-description-and-presentation

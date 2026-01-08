@@ -3,8 +3,7 @@
     <id>com.zaki.jsonbox</id>
     <name>JsonBox</name>
     <vendor>Mohammad Zaki</vendor>
-    <description>A handy IntelliJ plugin to format, minify, stringify, and diff JSON effortlessly — all within your
-        editor.
+    <description>JsonBox is a smart, floating JSON toolbox built into IntelliJ IDEA. It helps developers format, validate, minify, copy, and stringify JSON with ease — all inside the IDE.
     </description>
 
     <depends>com.intellij.modules.platform</depends>
