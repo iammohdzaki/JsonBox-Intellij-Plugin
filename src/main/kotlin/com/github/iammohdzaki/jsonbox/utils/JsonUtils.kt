@@ -6,72 +6,89 @@ import com.google.gson.JsonParser
 import com.google.gson.JsonSyntaxException
 import com.intellij.openapi.ui.Messages
 
+/**
+ * Utility class for JSON-related operations such as validation, stringification, and de-stringification.
+ */
 object JsonUtils {
 
     private val gson: Gson = GsonBuilder().create()
 
-    /** Validate JSON string */
+    /**
+     * Validates a JSON string.
+     *
+     * @param json The JSON string to validate.
+     * @return null if the JSON is valid, otherwise returns the error message.
+     */
     fun validateJson(json: String?): String? {
-        if (json.isNullOrBlank()) return "JSON is empty"
+        if (json.isNullOrBlank()) return JsonBoxBundle.message("jsonbox.error.empty")
         return try {
             JsonParser.parseString(json)
             null
         } catch (e: JsonSyntaxException) {
             e.message
         } catch (e: Exception) {
-            e.message ?: "Unknown error"
+            e.message ?: JsonBoxBundle.message("jsonbox.error.unknown")
         }
     }
 
 
+    /**
+     * Converts a JSON string into a stringified version (escaped and wrapped in quotes).
+     *
+     * @param json The JSON string to stringify.
+     * @return The stringified JSON, or null if an error occurs.
+     */
     fun stringifyJson(json: String?): String? {
         if (json.isNullOrBlank()) return null
         return try {
             if (isStringified(json)) {
                 json
             } else {
-                val element = tryParseJson(json)
-                Gson().toJson(element.toString()) // wrap as string literal
+                gson.toJson(json)
             }
         } catch (e: Exception) {
-            Messages.showErrorDialog("${e.message}", "Stringify Error")
+            showError(e, "jsonbox.dialog.stringify")
             null
         }
     }
 
+    /**
+     * Converts a stringified JSON back to its original form.
+     *
+     * @param json The stringified JSON.
+     * @return The original JSON content, or null if an error occurs.
+     */
     fun deStringifyJson(json: String?): String? {
         if (json.isNullOrBlank()) return null
         return try {
-            val element = tryParseJson(unescapeJsonString(json))
-            gson.toJson(element)
+            gson.fromJson(json, String::class.java)
         } catch (e: Exception) {
-            Messages.showErrorDialog("${e.message}", "DeStringify Error")
+            showError(e, "jsonbox.dialog.deStringify")
             null
         }
     }
 
-    /** Tries to parse JSON, even if it’s wrapped in quotes */
-    private fun tryParseJson(json: String): com.google.gson.JsonElement {
-        return try {
-            JsonParser.parseString(json)
-        } catch (_: Exception) {
-            JsonParser.parseString(unescapeJsonString(json))
-        }
-    }
-
-    /** Unescape stringified JSON */
-    private fun unescapeJsonString(json: String): String {
-        return json.trim()
-            .removeSurrounding("\"")
-            .replace("\\n", "\n")
-            .replace("\\t", "\t")
-            .replace("\\\"", "\"")
-            .replace("\\\\", "\\")
-    }
-
-    /** Checks if a JSON string is already a string literal (escaped JSON) */
+    /**
+     * Checks if a JSON string is already a string literal (escaped JSON).
+     *
+     * @param json The JSON string to check.
+     * @return True if it starts and ends with double quotes.
+     */
     private fun isStringified(json: String): Boolean {
-        val trimmed = json.trim()
-        return trimmed.startsWith("\"") && trimmed.endsWith("\"")
+        val t = json.trim()
+        return t.startsWith("\"") && t.endsWith("\"")
+    }
+
+    /**
+     * Shows an error dialog with the message from the exception.
+     *
+     * @param e The exception that occurred.
+     * @param key The resource bundle key for the dialog title.
+     */
+    private fun showError(e: Exception, key: String) {
+        Messages.showErrorDialog(
+            e.message ?: JsonBoxBundle.message("jsonbox.error.unknown"),
+            JsonBoxBundle.message(key)
+        )
     }
 }
