@@ -3,22 +3,53 @@
     <id>com.zaki.jsonbox</id>
     <name>JsonBox</name>
     <vendor>Mohammad Zaki</vendor>
-    <description>A handy IntelliJ plugin to format, minify, stringify, and diff JSON effortlessly — all within your editor.</description>
+    <description>A handy IntelliJ plugin to format, minify, stringify, and diff JSON effortlessly — all within your
+        editor.
+    </description>
 
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.json</depends>
-
+    <resource-bundle>messages.JsonBoxBundle</resource-bundle>
     <actions>
-        <group id="JsonBoxGroup" text="JsonBox" description="Open a JSON file in JsonBox" popup="true">
+        <!-- JsonBox main group -->
+        <group
+                id="JsonBox.Actions"
+                text="JsonBox"
+                description="Tools for viewing, formatting, and managing JSON"
+                popup="true">
+
             <add-to-group group-id="ToolsMenu" anchor="last"/>
-            <action id="JsonBox.ShowPopupAction"
+
+            <!-- Open main JsonBox dialog -->
+            <action
+                    id="JsonBox.OpenDialog"
                     class="com.github.iammohdzaki.jsonbox.actions.OpenJsonParserDialogAction"
                     text="Open JsonBox"
-                    description="Open JsonBox popup to format, minify, stringify or diff JSON"/>
+                    description="Open JsonBox dialog to format, stringify, validate, or diff JSON"/>
+
+            <!-- Open Quick List -->
+            <action
+                    id="JsonBox.OpenQuickList"
+                    class="com.github.iammohdzaki.jsonbox.actions.OpenJsonQuickListAction"
+                    text="JsonBox Quick List"
+                    description="Browse and manage saved JSON snippets">
+                <keyboard-shortcut first-keystroke="ctrl shift Q" keymap="$default"/>
+            </action>
+
+            <!-- Open JSON Diff -->
+            <action
+                    id="JsonBox.OpenDiff"
+                    class="com.github.iammohdzaki.jsonbox.actions.OpenDiffJsonAction"
+                    text="Compare JSON"
+                    description="Compare two JSON inputs using JsonBox"/>
+
         </group>
     </actions>
     <extensions defaultExtensionNs="com.intellij">
         <editorNotificationProvider
                 implementation="com.github.iammohdzaki.jsonbox.notification.JsonBoxNotificationProvider"/>
+        <notificationGroup id="JsonBox Notifications"
+                           displayType="BALLOON"
+                           isLogByDefault="true"/>
     </extensions>
 </idea-plugin>

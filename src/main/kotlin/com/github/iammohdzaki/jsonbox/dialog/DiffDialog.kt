@@ -1,24 +1,25 @@
 package com.github.iammohdzaki.jsonbox.dialog
 
+import com.github.iammohdzaki.jsonbox.utils.JsonBoxBundle
 import com.intellij.diff.DiffContentFactory
 import com.intellij.diff.DiffManager
 import com.intellij.diff.contents.DocumentContent
 import com.intellij.diff.requests.SimpleDiffRequest
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.vfs.VirtualFile
 
-fun showEditableJsonCompareDialog(project: Project, leftFile: VirtualFile?, rightText: String = "") {
+/**
+ * Displays a diff dialog to compare two JSON strings.
+ *
+ * @param project The current IntelliJ project.
+ * @param leftText The JSON content to show on the left side of the comparison.
+ * @param rightText The JSON content to show on the right side of the comparison.
+ */
+fun showEditableJsonCompareDialog(project: Project, leftText: String = "", rightText: String = "") {
     val contentFactory = DiffContentFactory.getInstance()
     val editorFactory = EditorFactory.getInstance()
 
-    // Left side: file content or empty document
-    val leftDocument = if (leftFile != null) {
-        val text = leftFile.inputStream.bufferedReader().use { it.readText() }
-        editorFactory.createDocument(text)
-    } else {
-        editorFactory.createDocument("")
-    }
+    val leftDocument = editorFactory.createDocument(leftText)
     val leftContent: DocumentContent = contentFactory.create(project, leftDocument)
 
     // Right side: empty editable document or prefilled text
@@ -27,11 +28,11 @@ fun showEditableJsonCompareDialog(project: Project, leftFile: VirtualFile?, righ
 
     // Create diff request
     val diffRequest = SimpleDiffRequest(
-        "Editable JSON Compare",
+        JsonBoxBundle.message("jsonbox.diff.title"),
         leftContent,
         rightContent,
-        leftFile?.name ?: "Left JSON",
-        "Right JSON"
+        JsonBoxBundle.message("jsonbox.diff.left"),
+        JsonBoxBundle.message("jsonbox.diff.right")
     )
 
     // Show the diff dialog
