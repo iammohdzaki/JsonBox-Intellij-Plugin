@@ -2,11 +2,13 @@
 
 # JsonBox Changelog
 
-## [0.0.5]
+## [Unreleased]
+
 ### Added
 - Added Json Diff Feature to compare two JSON objects side by side
 - Added Json Quick List to save and manage JSON snippets
 - Added Notification support for important events
+- Moved to i18n for localization. Contributions are now welcomed.
 
 ### Fixed
 
