@@ -21,7 +21,8 @@ import com.intellij.openapi.fileTypes.SyntaxHighlighterFactory
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
-import com.intellij.openapi.wm.WindowManager
+import com.intellij.openapi.ui.popup.JBPopup
+import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.ui.DocumentAdapter
 import com.intellij.ui.SearchTextField
 import com.intellij.ui.SimpleColoredComponent
@@ -37,35 +38,27 @@ import java.awt.FlowLayout
 import java.awt.datatransfer.StringSelection
 import java.awt.event.KeyAdapter
 import java.awt.event.KeyEvent
-import java.awt.event.WindowAdapter
-import java.awt.event.WindowEvent
 import javax.swing.DefaultListCellRenderer
 import javax.swing.DefaultListModel
 import javax.swing.JComponent
-import javax.swing.JFrame
 import javax.swing.JLabel
 import javax.swing.JList
 import javax.swing.JPanel
 import javax.swing.ListSelectionModel
-import javax.swing.WindowConstants
 import javax.swing.event.DocumentEvent
 
-/**
- * A completely independent top-level OS window for managing saved JSON snippets.
- * This features a searchable list on the left and a read-only preview editor on the right.
- */
-class JsonBoxQuickDialog(
+class JsonBoxQuickPopup(
     private val project: Project
-) : JFrame() {
+) {
 
     private val state = project.service<JsonQuickListState>()
 
-    // ---- Left list ----
     private val allItems = mutableListOf<JsonItem>()
     private val listModel = DefaultListModel<JsonItem>()
     private val jsonList = JBList(listModel)
     
-    // ---- Right preview editor (read-only) ----
+    private var popup: JBPopup? = null
+
     private val previewEditor: EditorEx =
         EditorFactory.getInstance().createEditor(
             EditorFactory.getInstance().createDocument(""),
@@ -78,55 +71,17 @@ class JsonBoxQuickDialog(
         textEditor.emptyText.text = JsonBoxBundle.message("jsonbox.search.hint")
     }
 
-    // -------------------
-    // Initialization
-    // -------------------
     init {
-        title = JsonBoxBundle.message("jsonbox.quick.title")
-        defaultCloseOperation = WindowConstants.DISPOSE_ON_CLOSE
-
         initList()
         initEditor()
         loadItems()
         initSearch()
-        
-        contentPane = createCenterPanel()
-        pack()
-        
-        // Ensure minimum size
-        minimumSize = Dimension(900, 550)
-        
-        // Match the IDE window's icon and center relative to the IDE
-        val ideFrame = WindowManager.getInstance().getFrame(project)
-        if (ideFrame != null) {
-            this.iconImages = ideFrame.iconImages
-        }
-        setLocationRelativeTo(ideFrame)
-        
-        // Clean up editor when the frame is closed via the X button or dispose()
-        addWindowListener(object : WindowAdapter() {
-            override fun windowClosed(e: WindowEvent?) {
-                EditorFactory.getInstance().releaseEditor(previewEditor)
-            }
-        })
     }
-
-    /**
-     * Overriding dispose to ensure the editor is always released,
-     * especially important for unit tests.
-     */
-    override fun dispose() {
-        EditorFactory.getInstance().releaseEditor(previewEditor)
-        super.dispose()
-    }
-
-    // ---------------- UI setup ----------------
 
     private fun createCenterPanel(): JComponent {
         val root = JPanel(BorderLayout(8, 8))
         root.border = JBUI.Borders.empty(8)
 
-        // Setup the list with Add/Edit/Delete actions
         val decoratedListPanel = ToolbarDecorator.createDecorator(jsonList)
             .disableUpDownActions()
             .setAddAction { onAdd() }
@@ -142,7 +97,6 @@ class JsonBoxQuickDialog(
             add(decoratedListPanel, BorderLayout.CENTER)
         }
 
-        // Center panel (editor)
         val editorPanel = previewEditor.component.apply {
             border = JBUI.Borders.empty()
         }
@@ -153,9 +107,6 @@ class JsonBoxQuickDialog(
         return root
     }
 
-    /**
-     * Installs a custom header inside the read-only editor containing copy and open actions.
-     */
     private fun installEditorHeader() {
         val scheme = EditorColorsManager.getInstance().globalScheme
 
@@ -190,13 +141,13 @@ class JsonBoxQuickDialog(
         ) {
             override fun actionPerformed(e: AnActionEvent) {
                 val item = selectedItem() ?: return
-                JsonBoxDialog(
+                JsonBoxPopup(
                     project = project,
                     virtualFile = null,
                     jsonItem = item,
                     editMode = true
-                ).apply { isVisible = true }
-                dispose()
+                ).show()
+                popup?.cancel()
             }
         }
 
@@ -223,18 +174,14 @@ class JsonBoxQuickDialog(
         previewEditor.headerComponent = headerPanel
     }
 
-    // ---------------- List ----------------
-
     private fun initList() {
         jsonList.selectionMode = ListSelectionModel.SINGLE_SELECTION
-        // Update the preview editor when a different item is selected
         jsonList.addListSelectionListener {
             val item = jsonList.selectedValue ?: return@addListSelectionListener
             ApplicationManager.getApplication().runWriteAction {
                 previewEditor.document.setText(item.json)
             }
         }
-        
         jsonList.cellRenderer = object : DefaultListCellRenderer() {
             override fun getListCellRendererComponent(
                 list: JList<*>,
@@ -275,8 +222,6 @@ class JsonBoxQuickDialog(
         applyFilter("")
     }
 
-    // ---------------- Editor ----------------
-
     private fun initEditor() {
         previewEditor.settings.isLineNumbersShown = true
         previewEditor.settings.isFoldingOutlineShown = true
@@ -291,7 +236,6 @@ class JsonBoxQuickDialog(
         installEditorHeader()
     }
 
-    // ---------------- Search ----------------
     private fun initSearch() {
         searchField.addDocumentListener(object : DocumentAdapter() {
             override fun textChanged(e: DocumentEvent) {
@@ -300,7 +244,6 @@ class JsonBoxQuickDialog(
         })
         searchField.textEditor.addKeyListener(object : KeyAdapter() {
             override fun keyPressed(e: KeyEvent) {
-                // Focus list on down arrow key press
                 if (e.keyCode == KeyEvent.VK_DOWN && listModel.size() > 0) {
                     jsonList.requestFocus()
                     jsonList.selectedIndex = 0
@@ -309,11 +252,6 @@ class JsonBoxQuickDialog(
         })
     }
 
-    // ---------------- Actions ----------------
-    
-    /**
-     * Filters the list of JSON snippets based on the search query.
-     */
     private fun applyFilter(query: String) {
         listModel.clear()
 
@@ -340,11 +278,8 @@ class JsonBoxQuickDialog(
 
     private fun selectedItem(): JsonItem? = jsonList.selectedValue
 
-    /**
-     * Opens the editor dialog in 'Add' mode.
-     */
     private fun onAdd() {
-        JsonBoxDialog(project, null, jsonItem = null, onSave = { jsonItem ->
+        JsonBoxPopup(project, null, jsonItem = null, onSave = { jsonItem ->
             state.add(jsonItem)
             loadItems()
             JsonBoxNotifications.notify(
@@ -352,17 +287,14 @@ class JsonBoxQuickDialog(
                 JsonBoxBundle.message("jsonbox.title"),
                 JsonBoxBundle.message("jsonbox.notification.added.message")
             )
-            JsonBoxQuickDialog(project).apply { isVisible = true }
-        }).apply { isVisible = true }
-        dispose()
+            JsonBoxQuickPopup(project).show()
+        }).show()
+        popup?.cancel()
     }
 
-    /**
-     * Opens the editor dialog in 'Edit' mode for the selected item.
-     */
     private fun onEdit() {
         val item = selectedItem() ?: return
-        JsonBoxDialog(project, null, jsonItem = item, editMode = true, onSave = { jsonItem ->
+        JsonBoxPopup(project, null, jsonItem = item, editMode = true, onSave = { jsonItem ->
             state.update(jsonItem)
             loadItems()
             JsonBoxNotifications.notify(
@@ -370,14 +302,11 @@ class JsonBoxQuickDialog(
                 JsonBoxBundle.message("jsonbox.title"),
                 JsonBoxBundle.message("jsonbox.notification.update.message")
             )
-            JsonBoxQuickDialog(project).apply { isVisible = true }
-        }).apply { isVisible = true }
-        dispose()
+            JsonBoxQuickPopup(project).show()
+        }).show()
+        popup?.cancel()
     }
 
-    /**
-     * Prompts for confirmation and deletes the selected item.
-     */
     private fun onDelete() {
         val item = selectedItem() ?: return
         val confirm = Messages.showYesNoDialog(
@@ -397,9 +326,6 @@ class JsonBoxQuickDialog(
         }
     }
 
-    /**
-     * Copies the selected JSON to the system clipboard.
-     */
     private fun onCopy() {
         val item = selectedItem() ?: return
         CopyPasteManager.getInstance()
@@ -409,5 +335,28 @@ class JsonBoxQuickDialog(
             JsonBoxBundle.message("jsonbox.dialog.copy.message"),
             JsonBoxBundle.message("jsonbox.dialog.copy.title")
         )
+    }
+
+    fun show() {
+        val panel = createCenterPanel()
+        
+        popup = JBPopupFactory.getInstance()
+            .createComponentPopupBuilder(panel, searchField)
+            .setTitle(JsonBoxBundle.message("jsonbox.quick.title"))
+            .setMovable(true)
+            .setResizable(true)
+            .setRequestFocus(true)
+            .setCancelOnClickOutside(false) // Changed to false
+            .setCancelKeyEnabled(true)
+            .setDimensionServiceKey(project, "JsonBoxQuickPopupSize", false)
+            .createPopup()
+            
+        popup?.addListener(object : com.intellij.openapi.ui.popup.JBPopupListener {
+            override fun onClosed(event: com.intellij.openapi.ui.popup.LightweightWindowEvent) {
+                EditorFactory.getInstance().releaseEditor(previewEditor)
+            }
+        })
+            
+        popup?.showCenteredInCurrentWindow(project)
     }
 }

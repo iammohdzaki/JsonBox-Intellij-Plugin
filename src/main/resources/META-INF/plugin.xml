@@ -22,9 +22,9 @@
             <!-- Open main JsonBox dialog -->
             <action
                     id="JsonBox.OpenDialog"
-                    class="com.github.iammohdzaki.jsonbox.actions.OpenJsonParserDialogAction"
+                    class="com.github.iammohdzaki.jsonbox.actions.OpenJsonBoxWindowAction"
                     text="Open JsonBox"
-                    description="Open JsonBox dialog to format, stringify, validate, or diff JSON"/>
+                    description="Open JsonBox to format, stringify, validate, or diff JSON"/>
 
             <!-- Open Quick List -->
             <action

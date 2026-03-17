@@ -67,10 +67,10 @@ Download from [GitHub Releases](https://github.com/iammohdzaki/JsonBox/releases/
 
 ## 🖼 Plugin Preview
 
-<img src="preview/notification.png" alt="JsonBox Logo"/>
-<img src="preview/quicklist_dialog.png" alt="JsonBox Logo"/>
-<img src="preview/jsonbox_dialog.png" alt="JsonBox Logo"/>
-<img src="preview/diff_dialog.png" alt="JsonBox Logo"/>
+<img src="preview/jbS1.png" alt="JsonBox Logo"/>
+<img src="preview/jbS2.png" alt="JsonBox Logo"/>
+<img src="preview/jbS3.png" alt="JsonBox Logo"/>
+<img src="preview/jbS4.png" alt="JsonBox Logo"/>
 
 ---
 

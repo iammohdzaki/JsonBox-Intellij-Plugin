@@ -23,13 +23,13 @@ import com.intellij.openapi.editor.ex.EditorEx
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.ui.popup.JBPopup
+import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.openapi.wm.WindowManager
 import com.intellij.psi.PsiFileFactory
 import com.intellij.psi.PsiManager
 import com.intellij.psi.codeStyle.CodeStyleManager
 import com.intellij.ui.components.JBPanel
-import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
@@ -37,51 +37,43 @@ import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.datatransfer.StringSelection
-import java.awt.event.WindowAdapter
-import java.awt.event.WindowEvent
 import javax.swing.JComponent
-import javax.swing.JFrame
 import javax.swing.JLabel
 import javax.swing.JPanel
-import javax.swing.WindowConstants
 
 /**
- * A completely independent top-level OS window for editing JSON files.
- * This can be minimized, resized, and will go behind the main IDE window
- * when losing focus, behaving exactly like a normal desktop application.
+ * A custom popup window for editing JSON files or arbitrary JSON text in IntelliJ.
  */
-class JsonBoxDialog(
+class JsonBoxPopup(
     private val project: Project,
-    private val virtualFile: VirtualFile?,
+    private val virtualFile: VirtualFile?,          // Null if opened without a file
     private val jsonItem: JsonItem? = null,
     private val editMode: Boolean = false,
     private var onSave: ((content: JsonItem) -> Unit)? = null
-) : JFrame() {
+) {
 
     // Create the editor instance (syntax-highlighted, folding enabled)
     private val editor: EditorEx = JsonEditorFactory.createEditor(project, virtualFile, jsonItem?.json ?: "")
     val state = project.service<JsonQuickListState>()
 
-    // Text field for naming the JSON snippet
     private val jsonNameField = JBTextField(
         jsonItem?.title ?: generateDefaultName()
     )
 
-    // Status label to show whether JSON is valid or invalid
     private val statusLabel: JLabel = JLabel().apply {
         foreground = UIUtil.getContextHelpForeground()
     }
     
-    // Size label to show the size of the JSON content
     private val sizeLabel: JLabel = JLabel().apply {
         foreground = UIUtil.getContextHelpForeground()
     }
+    
+    private var popup: JBPopup? = null
 
     // -------------------
     // Button Definitions
     // -------------------
 
-    // Search button: opens the IntelliJ search overlay in the editor
     private val searchButton =
         ButtonFactory.createNormalButton(
             JsonBoxBundle.message("jsonbox.dialog.search.title"),
@@ -91,7 +83,24 @@ class JsonBoxDialog(
             EditorSearchSession.start(editor, project)
         }
 
-    // Format button: pretty-prints JSON, replaces text in editor if valid
+    private val validateButton = ButtonFactory.createNormalButton(
+        JsonBoxBundle.message("jsonbox.dialog.validate.title"),
+        AllIcons.Actions.Checked
+    ) {
+        val error = JsonUtils.validateJson(editor.document.text)
+        if (error == null) {
+            Messages.showInfoMessage(
+                JsonBoxBundle.message("jsonbox.dialog.validate.valid.message"),
+                JsonBoxBundle.message("jsonbox.dialog.validate.subtitle")
+            )
+        } else {
+            Messages.showInfoMessage(
+                JsonBoxBundle.message("jsonbox.dialog.validate.invalid.message", error),
+                JsonBoxBundle.message("jsonbox.dialog.validate.subtitle")
+            )
+        }
+    }
+
     private val formatButton = ButtonFactory.createNormalButton(
         JsonBoxBundle.message("jsonbox.dialog.format.title"),
         AllIcons.Actions.ChangeView
@@ -105,10 +114,8 @@ class JsonBoxDialog(
             return@createNormalButton
         }
 
-        // Must run in a WriteCommandAction to modify PSI/Documents safely
         WriteCommandAction.runWriteCommandAction(project) {
             try {
-                // Create a temporary PSI file if editor is not backed by a real file
                 val psiFile = if (editor.virtualFile != null) {
                     PsiManager.getInstance(project).findFile(editor.virtualFile!!)!!
                 } else {
@@ -116,10 +123,7 @@ class JsonBoxDialog(
                         .createFileFromText("temp.json", JsonLanguage.INSTANCE, text)
                 }
 
-                // Format using CodeStyleManager
                 CodeStyleManager.getInstance(project).reformat(psiFile)
-
-                // Update editor with formatted text
                 editor.document.setText(psiFile.text)
 
             } catch (e: Exception) {
@@ -131,7 +135,6 @@ class JsonBoxDialog(
         }
     }
 
-    // Save button: saves JSON to disk/state only when clicked
     private val saveButton =
         ButtonFactory.createDefaultButton(
             JsonBoxBundle.message("jsonbox.dialog.button.save.quick"),
@@ -145,19 +148,21 @@ class JsonBoxDialog(
                     JsonItem(title = jsonNameField.text, json = content)
                 }
                 
+                if (editMode) {
+                    state.update(newItem)
+                } else {
+                    state.add(newItem)
+                }
+                
                 if (onSave != null) {
-                    // Custom callback handling
                     onSave?.invoke(newItem)
                 } else {
-                    // Default behavior: Access the state service directly
-                    if (editMode) state.update(newItem) else state.add(newItem)
+                    JsonBoxQuickPopup(project).show()
                 }
-                // Close the dialog after saving
-                dispose()
+                popup?.cancel()
             }
         }
 
-    // Stringify button: converts JSON to a single-line string
     private val stringifyButton = ButtonFactory.createNormalButton(JsonBoxBundle.message("jsonbox.dialog.stringify")) {
         val singleLine = JsonUtils.stringifyJson(editor.document.text)
         if (singleLine != null) runWriteAction { editor.document.setText(singleLine) }
@@ -167,7 +172,6 @@ class JsonBoxDialog(
         )
     }
 
-    // DeStringify button: converts single-line JSON back to formatted JSON
     private val deStringifyButton =
         ButtonFactory.createNormalButton(JsonBoxBundle.message("jsonbox.dialog.deStringify")) {
             val deStringify = JsonUtils.deStringifyJson(editor.document.text)
@@ -178,7 +182,6 @@ class JsonBoxDialog(
             )
         }
 
-    // Copy button: copies current JSON to system clipboard
     private val copyButton =
         ButtonFactory.createNormalButton(JsonBoxBundle.message("jsonbox.button.copy"), AllIcons.Actions.Copy) {
             CopyPasteManager.getInstance().setContents(StringSelection(editor.document.text))
@@ -188,85 +191,41 @@ class JsonBoxDialog(
             )
         }
 
-    // Compare button: opens IntelliJ's native diff viewer
     private val compareButton =
         ButtonFactory.createNormalButton(JsonBoxBundle.message("jsonbox.dialog.compare.json"), AllIcons.Actions.Diff) {
             val content = editor.document.text
             if (content.isNotEmpty()) showEditableJsonCompareDialog(project, content)
         }
 
-    // -------------------
-    // Initialization
-    // -------------------
     init {
-        title = JsonBoxBundle.message("jsonbox.title")
-        defaultCloseOperation = WindowConstants.DISPOSE_ON_CLOSE
-
         jsonNameField.text =
             if (jsonNameField.text.isNullOrBlank()) generateDefaultName()
             else jsonNameField.text
 
-        // Listen for document changes to update validity indicators in real-time
         editor.document.addDocumentListener(object : DocumentListener {
             override fun documentChanged(event: DocumentEvent) {
                 updateIndicators(editor.document.text)
             }
         })
-        
-        contentPane = createCenterPanel()
-        pack()
-        
-        // Ensure minimum size so buttons are not hidden
-        minimumSize = Dimension(900, 600)
-        
-        // Match the IDE window's icon and center relative to the IDE on the correct monitor
-        val ideFrame = WindowManager.getInstance().getFrame(project)
-        if (ideFrame != null) {
-            this.iconImages = ideFrame.iconImages
-        }
-        setLocationRelativeTo(ideFrame)
-        
-        // Clean up editor when the frame is closed via the X button or dispose()
-        addWindowListener(object : WindowAdapter() {
-            override fun windowClosed(e: WindowEvent?) {
-                EditorFactory.getInstance().releaseEditor(editor)
-            }
-        })
-
-        // Initial validation check
         updateIndicators(editor.document.text)
     }
 
-    /**
-     * Overriding dispose to ensure the editor is always released,
-     * especially important for unit tests.
-     */
-    override fun dispose() {
-        EditorFactory.getInstance().releaseEditor(editor)
-        super.dispose()
-    }
-
-    // -------------------
-    // Build UI Components
-    // -------------------
     private fun createCenterPanel(): JComponent {
         val panel = JBPanel<JBPanel<*>>(BorderLayout(10, 10))
         panel.border = JBUI.Borders.empty(10)
         
-        // ---------- Top: JSON name ----------
         val namePanel = JBPanel<JBPanel<*>>(BorderLayout(5, 5))
         namePanel.add(JLabel(JsonBoxBundle.message("jsonbox.dialog.label.name")), BorderLayout.WEST)
         namePanel.add(jsonNameField, BorderLayout.CENTER)
         panel.add(namePanel, BorderLayout.NORTH)
 
-        // ---------- Center: Editor and Status ----------
         val centerPanel = JPanel(BorderLayout())
         centerPanel.add(createStatusPanel(), BorderLayout.NORTH)
         centerPanel.add(editor.component, BorderLayout.CENTER)
         panel.add(centerPanel, BorderLayout.CENTER)
 
-        // ---------- Bottom: Buttons ----------
         val buttonPanel = JBPanel<JBPanel<*>>(FlowLayout(FlowLayout.CENTER, 10, 10))
+        buttonPanel.add(validateButton)
         buttonPanel.add(formatButton)
         buttonPanel.add(compareButton)
         buttonPanel.add(stringifyButton)
@@ -274,23 +233,12 @@ class JsonBoxDialog(
         buttonPanel.add(copyButton)
         buttonPanel.add(saveButton)
         buttonPanel.add(searchButton, 0)
-        
-        // Wrap the button panel in a scroll pane just in case the window gets too narrow
-        val buttonScrollPane = JBScrollPane(buttonPanel).apply {
-            border = JBUI.Borders.empty()
-            verticalScrollBarPolicy = JBScrollPane.VERTICAL_SCROLLBAR_NEVER
-            horizontalScrollBarPolicy = JBScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED
-        }
-        
-        panel.add(buttonScrollPane, BorderLayout.SOUTH)
+        panel.add(buttonPanel, BorderLayout.SOUTH)
 
         panel.preferredSize = Dimension(900, 600)
         return panel
     }
 
-    /**
-     * Creates the top panel containing the validity status and size labels.
-     */
     private fun createStatusPanel(): JComponent {
         return JPanel(FlowLayout(FlowLayout.LEFT, 8, 0)).apply {
             isOpaque = false
@@ -300,9 +248,6 @@ class JsonBoxDialog(
         }
     }
 
-    /**
-     * Determines whether to run validation synchronously or asynchronously based on payload size.
-     */
     private fun updateIndicators(json: String) {
         if (json.isBlank()) {
             showEmpty(json)
@@ -336,10 +281,6 @@ class JsonBoxDialog(
         )
     }
 
-    // -------------------
-    // UI Update Methods
-    // -------------------
-
     private fun showValid(json: String) {
         statusLabel.text = JsonBoxBundle.message("jsonbox.preview.valid")
         statusLabel.foreground = UIUtil.getLabelSuccessForeground()
@@ -356,5 +297,29 @@ class JsonBoxDialog(
         statusLabel.text = JsonBoxBundle.message("jsonbox.preview.invalid")
         statusLabel.foreground = UIUtil.getErrorForeground()
         sizeLabel.text = " | ${JsonIndicatorUtil.formatSize(json)}"
+    }
+
+    fun show() {
+        val panel = createCenterPanel()
+        
+        popup = JBPopupFactory.getInstance()
+            .createComponentPopupBuilder(panel, editor.contentComponent)
+            .setTitle(JsonBoxBundle.message("jsonbox.title"))
+            .setMovable(true)
+            .setResizable(true)
+            .setRequestFocus(true)
+            .setCancelOnClickOutside(false) // Changed to false
+            .setCancelKeyEnabled(true)
+            .setDimensionServiceKey(project, "JsonBoxPopupSize", false)
+            .createPopup()
+            
+        // Clean up editor when popup is closed
+        popup?.addListener(object : com.intellij.openapi.ui.popup.JBPopupListener {
+            override fun onClosed(event: com.intellij.openapi.ui.popup.LightweightWindowEvent) {
+                EditorFactory.getInstance().releaseEditor(editor)
+            }
+        })
+            
+        popup?.showCenteredInCurrentWindow(project)
     }
 }

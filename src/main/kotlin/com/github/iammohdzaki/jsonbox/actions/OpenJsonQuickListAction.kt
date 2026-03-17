@@ -15,7 +15,7 @@ class OpenJsonQuickListAction : AnAction() {
 
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
-        JsonBoxQuickDialog(project).show()
+        JsonBoxQuickDialog(project).apply { isVisible = true }
     }
 
     override fun update(e: AnActionEvent) {
