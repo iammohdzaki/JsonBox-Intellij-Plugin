@@ -4,7 +4,7 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonParser
 import com.google.gson.JsonSyntaxException
-import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.diagnostic.Logger
 
 /**
  * Utility class for JSON-related operations such as validation, stringification, and de-stringification.
@@ -12,6 +12,7 @@ import com.intellij.openapi.ui.Messages
 object JsonUtils {
 
     private val gson: Gson = GsonBuilder().create()
+    private val logger = Logger.getInstance(JsonUtils::class.java)
 
     /**
      * Validates a JSON string.
@@ -25,8 +26,10 @@ object JsonUtils {
             JsonParser.parseString(json)
             null
         } catch (e: JsonSyntaxException) {
+            logger.debug("Failed to validate JSON", e)
             e.message
         } catch (e: Exception) {
+            logger.debug("Failed to validate JSON", e)
             e.message ?: JsonBoxBundle.message("jsonbox.error.unknown")
         }
     }
@@ -45,6 +48,7 @@ object JsonUtils {
             val prettyGson = GsonBuilder().setPrettyPrinting().create()
             prettyGson.toJson(jsonElement)
         } catch (e: Exception) {
+            logger.debug("Failed to format JSON", e)
             null
         }
     }
@@ -61,6 +65,7 @@ object JsonUtils {
             val jsonElement = JsonParser.parseString(json)
             gson.toJson(jsonElement) // Default gson behavior is minified
         } catch (e: Exception) {
+            logger.debug("Failed to Minify JSON", e)
             null
         }
     }
@@ -69,7 +74,7 @@ object JsonUtils {
      * Converts a JSON string into a stringified version (escaped and wrapped in quotes).
      *
      * @param json The JSON string to stringify.
-     * @return The stringified JSON, or null if an error occurs.
+     * @return The stringified JSON, or throws an exception if an error occurs.
      */
     fun stringifyJson(json: String?): String? {
         if (json.isNullOrBlank()) return null
@@ -80,8 +85,8 @@ object JsonUtils {
                 gson.toJson(json)
             }
         } catch (e: Exception) {
-            showError(e, "jsonbox.dialog.stringify")
-            null
+            logger.warn("Failed to stringify JSON", e)
+            throw e
         }
     }
 
@@ -89,15 +94,15 @@ object JsonUtils {
      * Converts a stringified JSON back to its original form.
      *
      * @param json The stringified JSON.
-     * @return The original JSON content, or null if an error occurs.
+     * @return The original JSON content, or throws an exception if an error occurs.
      */
     fun deStringifyJson(json: String?): String? {
         if (json.isNullOrBlank()) return null
         return try {
             gson.fromJson(json, String::class.java)
         } catch (e: Exception) {
-            showError(e, "jsonbox.dialog.deStringify")
-            null
+            logger.warn("Failed to destringify JSON", e)
+            throw e
         }
     }
 
@@ -110,18 +115,5 @@ object JsonUtils {
     private fun isStringified(json: String): Boolean {
         val t = json.trim()
         return t.startsWith("\"") && t.endsWith("\"")
-    }
-
-    /**
-     * Shows an error dialog with the message from the exception.
-     *
-     * @param e The exception that occurred.
-     * @param key The resource bundle key for the dialog title.
-     */
-    private fun showError(e: Exception, key: String) {
-        Messages.showErrorDialog(
-            e.message ?: JsonBoxBundle.message("jsonbox.error.unknown"),
-            JsonBoxBundle.message(key)
-        )
     }
 }

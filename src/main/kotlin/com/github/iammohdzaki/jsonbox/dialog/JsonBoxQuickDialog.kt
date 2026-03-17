@@ -107,7 +107,9 @@ class JsonBoxQuickDialog(
      * especially important for unit tests.
      */
     override fun dispose() {
-        EditorFactory.getInstance().releaseEditor(previewEditor)
+        if (!previewEditor.isDisposed) {
+            EditorFactory.getInstance().releaseEditor(previewEditor)
+        }
         super.dispose()
     }
 

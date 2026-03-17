@@ -145,14 +145,7 @@ class JsonBoxDialog(
                     }
                 }
             } catch (e: Exception) {
-                ApplicationManager.getApplication().invokeLater {
-                    if (isDisplayable) {
-                        Messages.showErrorDialog(
-                            "${e.message}",
-                            JsonBoxBundle.message("jsonbox.dialog.format.error.title")
-                        )
-                    }
-                }
+                // Ignore exceptions on pooled thread, log them in JsonUtils instead
             }
         }
     }
@@ -185,14 +178,7 @@ class JsonBoxDialog(
                     }
                 }
             } catch (e: Exception) {
-                ApplicationManager.getApplication().invokeLater {
-                    if (isDisplayable) {
-                        Messages.showErrorDialog(
-                            "${e.message}",
-                            JsonBoxBundle.message("jsonbox.error.title")
-                        )
-                    }
-                }
+                // Ignore exceptions on pooled thread, log them in JsonUtils instead
             }
         }
     }
@@ -229,15 +215,19 @@ class JsonBoxDialog(
         val modificationStamp = editor.document.modificationStamp
 
         ApplicationManager.getApplication().executeOnPooledThread {
-            val singleLine = JsonUtils.stringifyJson(text)
-            ApplicationManager.getApplication().invokeLater {
-                if (!isDisplayable || editor.document.modificationStamp != modificationStamp) return@invokeLater
-
-                if (singleLine != null) runWriteAction { editor.document.setText(singleLine) }
-                else Messages.showErrorDialog(
-                    JsonBoxBundle.message("jsonbox.dialog.stringify.invalid.message"),
-                    JsonBoxBundle.message("jsonbox.error.title")
-                )
+            try {
+                val singleLine = JsonUtils.stringifyJson(text)
+                ApplicationManager.getApplication().invokeLater {
+                    if (!isDisplayable || editor.document.modificationStamp != modificationStamp) return@invokeLater
+                    
+                    if (singleLine != null) runWriteAction { editor.document.setText(singleLine) }
+                    else Messages.showErrorDialog(
+                        JsonBoxBundle.message("jsonbox.dialog.stringify.invalid.message"),
+                        JsonBoxBundle.message("jsonbox.error.title")
+                    )
+                }
+            } catch (e: Exception) {
+                // Ignore exceptions on pooled thread, log them in JsonUtils instead
             }
         }
     }
@@ -249,15 +239,19 @@ class JsonBoxDialog(
             val modificationStamp = editor.document.modificationStamp
 
             ApplicationManager.getApplication().executeOnPooledThread {
-                val deStringify = JsonUtils.deStringifyJson(text)
-                ApplicationManager.getApplication().invokeLater {
-                    if (!isDisplayable || editor.document.modificationStamp != modificationStamp) return@invokeLater
+                try {
+                    val deStringify = JsonUtils.deStringifyJson(text)
+                    ApplicationManager.getApplication().invokeLater {
+                        if (!isDisplayable || editor.document.modificationStamp != modificationStamp) return@invokeLater
 
-                    if (deStringify != null) runWriteAction { editor.document.setText(deStringify) }
-                    else Messages.showErrorDialog(
-                        JsonBoxBundle.message("jsonbox.dialog.deStringify.invalid.message"),
-                        JsonBoxBundle.message("jsonbox.error.title")
-                    )
+                        if (deStringify != null) runWriteAction { editor.document.setText(deStringify) }
+                        else Messages.showErrorDialog(
+                            JsonBoxBundle.message("jsonbox.dialog.deStringify.invalid.message"),
+                            JsonBoxBundle.message("jsonbox.error.title")
+                        )
+                    }
+                } catch (e: Exception) {
+                    // Ignore exceptions on pooled thread, log them in JsonUtils instead
                 }
             }
         }
@@ -312,7 +306,9 @@ class JsonBoxDialog(
      * especially important for unit tests.
      */
     override fun dispose() {
-        EditorFactory.getInstance().releaseEditor(editor)
+        if (!editor.isDisposed) {
+            EditorFactory.getInstance().releaseEditor(editor)
+        }
         super.dispose()
     }
 
