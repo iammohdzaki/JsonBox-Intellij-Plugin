@@ -1,27 +1,34 @@
 package com.github.iammohdzaki.jsonbox.dialog
 
-import com.intellij.openapi.util.Disposer
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import java.awt.GraphicsEnvironment
 
 class JsonBoxDialogTest : BasePlatformTestCase() {
 
     fun testDialogInitialization() {
+        if (GraphicsEnvironment.isHeadless()) {
+            println("Skipping test in headless environment.")
+            return
+        }
         val dialog = JsonBoxDialog(project, null)
         try {
-            // dialog.init() is called by the constructor, which creates the center panel
             assertNotNull(dialog.title)
         } finally {
-            Disposer.dispose(dialog.disposable)
+            dialog.dispose()
         }
     }
 
     fun testDialogWithInitialContent() {
+        if (GraphicsEnvironment.isHeadless()) {
+            println("Skipping test in headless environment.")
+            return
+        }
         val initialJson = """{"test": "value"}"""
         val dialog = JsonBoxDialog(project, null, com.github.iammohdzaki.jsonbox.persistance.model.JsonItem("Test Title", initialJson))
         try {
             assertNotNull(dialog.title)
         } finally {
-            Disposer.dispose(dialog.disposable)
+            dialog.dispose()
         }
     }
 }

@@ -13,6 +13,7 @@ import com.github.iammohdzaki.jsonbox.utils.ValidationResult
 import com.intellij.find.EditorSearchSession
 import com.intellij.icons.AllIcons
 import com.intellij.json.JsonLanguage
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.runWriteAction
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.service
@@ -22,13 +23,14 @@ import com.intellij.openapi.editor.event.DocumentListener
 import com.intellij.openapi.editor.ex.EditorEx
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.wm.WindowManager
 import com.intellij.psi.PsiFileFactory
 import com.intellij.psi.PsiManager
 import com.intellij.psi.codeStyle.CodeStyleManager
 import com.intellij.ui.components.JBPanel
+import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
@@ -36,38 +38,45 @@ import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.datatransfer.StringSelection
-import javax.swing.Action
 import javax.swing.JComponent
+import javax.swing.JFrame
 import javax.swing.JLabel
 import javax.swing.JPanel
+import javax.swing.ScrollPaneConstants
+import javax.swing.WindowConstants
 
 /**
- * A custom dialog for editing JSON files or arbitrary JSON text in IntelliJ.
- *
- * Features:
- * - PSI-backed JSON editor with syntax highlighting, code folding, line numbers.
- * - Tools for JSON validation, formatting, and transformation (stringify/destringify).
- * - Ability to save snippets to the persistent quick list.
- * - Search and comparison capabilities.
+ * A completely independent top-level OS window for editing JSON files.
+ * This can be minimized, resized, and will go behind the main IDE window
+ * when losing focus, behaving exactly like a normal desktop application.
  */
 class JsonBoxDialog(
     private val project: Project,
-    private val virtualFile: VirtualFile?,          // Null if opened without a file
+    private val virtualFile: VirtualFile?,
     private val jsonItem: JsonItem? = null,
     private val editMode: Boolean = false,
     private var onSave: ((content: JsonItem) -> Unit)? = null
-) : DialogWrapper(true) {
+) : JFrame() {
 
     // Create the editor instance (syntax-highlighted, folding enabled)
     private val editor: EditorEx = JsonEditorFactory.createEditor(project, virtualFile, jsonItem?.json ?: "")
     val state = project.service<JsonQuickListState>()
 
+    // Text field for naming the JSON snippet
     private val jsonNameField = JBTextField(
         jsonItem?.title ?: generateDefaultName()
     )
 
-    private lateinit var statusLabel: JLabel
-    private lateinit var sizeLabel: JLabel
+    // Status label to show whether JSON is valid or invalid
+    private val statusLabel: JLabel = JLabel().apply {
+        foreground = UIUtil.getContextHelpForeground()
+    }
+
+    // Size label to show the size of the JSON content
+    private val sizeLabel: JLabel = JLabel().apply {
+        foreground = UIUtil.getContextHelpForeground()
+    }
+
     // -------------------
     // Button Definitions
     // -------------------
@@ -81,25 +90,6 @@ class JsonBoxDialog(
         ) {
             EditorSearchSession.start(editor, project)
         }
-
-    // Validate button: checks if current JSON is valid and shows a message
-    private val validateButton = ButtonFactory.createNormalButton(
-        JsonBoxBundle.message("jsonbox.dialog.validate.title"),
-        AllIcons.Actions.Checked
-    ) {
-        val error = JsonUtils.validateJson(editor.document.text)
-        if (error == null) {
-            Messages.showInfoMessage(
-                JsonBoxBundle.message("jsonbox.dialog.validate.valid.message"),
-                JsonBoxBundle.message("jsonbox.dialog.validate.subtitle")
-            )
-        } else {
-            Messages.showInfoMessage(
-                JsonBoxBundle.message("jsonbox.dialog.validate.invalid.message", error),
-                JsonBoxBundle.message("jsonbox.dialog.validate.subtitle")
-            )
-        }
-    }
 
     // Format button: pretty-prints JSON, replaces text in editor if valid
     private val formatButton = ButtonFactory.createNormalButton(
@@ -115,32 +105,85 @@ class JsonBoxDialog(
             return@createNormalButton
         }
 
-        WriteCommandAction.runWriteCommandAction(project) {
+        // Capture the modification stamp before running the async task
+        val modificationStamp = editor.document.modificationStamp
+
+        // Run formatting on a background thread to prevent UI freezing
+        ApplicationManager.getApplication().executeOnPooledThread {
             try {
-                // Create a temporary PSI file if editor is not backed by a real file
-                val psiFile = if (editor.virtualFile != null) {
-                    PsiManager.getInstance(project).findFile(editor.virtualFile!!)!!
-                } else {
-                    PsiFileFactory.getInstance(project)
-                        .createFileFromText("temp.json", JsonLanguage.INSTANCE, text)
+                // Try lightweight string-based formatting first for performance
+                val formattedStr = JsonUtils.formatJson(text)
+
+                ApplicationManager.getApplication().invokeLater {
+                    // Check if the document was modified or if the frame was disposed
+                    if (!isDisplayable || editor.document.modificationStamp != modificationStamp) return@invokeLater
+
+                    if (formattedStr != null) {
+                        // If fast formatting succeeds, update document directly
+                        runWriteAction { editor.document.setText(formattedStr) }
+                    } else {
+                        // Fallback to heavy PSI-based formatting if necessary (e.g., partial syntax errors)
+                        WriteCommandAction.runWriteCommandAction(project) {
+                            try {
+                                val psiFile = if (editor.virtualFile != null) {
+                                    PsiManager.getInstance(project).findFile(editor.virtualFile!!)!!
+                                } else {
+                                    PsiFileFactory.getInstance(project)
+                                        .createFileFromText("temp.json", JsonLanguage.INSTANCE, text)
+                                }
+
+                                CodeStyleManager.getInstance(project).reformat(psiFile)
+                                editor.document.setText(psiFile.text)
+
+                            } catch (e: Exception) {
+                                Messages.showErrorDialog(
+                                    "${e.message}",
+                                    JsonBoxBundle.message("jsonbox.dialog.format.error.title")
+                                )
+                            }
+                        }
+                    }
                 }
-
-                // Format using CodeStyleManager
-                CodeStyleManager.getInstance(project).reformat(psiFile)
-
-                // Update editor with formatted text
-                editor.document.setText(psiFile.text)
-
             } catch (e: Exception) {
-                Messages.showErrorDialog(
-                    "${e.message}",
-                    JsonBoxBundle.message("jsonbox.dialog.format.error.title")
-                )
+                // Ignore exceptions on pooled thread, log them in JsonUtils instead
             }
         }
     }
 
-    // Save button: saves JSON to disk only when clicked; uses VirtualFile
+    private val minifyButton = ButtonFactory.createNormalButton(
+        JsonBoxBundle.message("jsonbox.dialog.minify.json"),
+        AllIcons.Actions.Collapseall
+    ) {
+        val text = editor.document.text
+        if (text.isBlank()) {
+            return@createNormalButton
+        }
+
+        val modificationStamp = editor.document.modificationStamp
+
+        ApplicationManager.getApplication().executeOnPooledThread {
+            try {
+                val minifiedStr = JsonUtils.minifyJson(text)
+
+                ApplicationManager.getApplication().invokeLater {
+                    if (!isDisplayable || editor.document.modificationStamp != modificationStamp) return@invokeLater
+
+                    if (minifiedStr != null) {
+                        runWriteAction { editor.document.setText(minifiedStr) }
+                    } else {
+                        Messages.showErrorDialog(
+                            JsonBoxBundle.message("jsonbox.dialog.format.error.message"), // reuse formatting error message
+                            JsonBoxBundle.message("jsonbox.dialog.format.error.title")
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                // Ignore exceptions on pooled thread, log them in JsonUtils instead
+            }
+        }
+    }
+
+    // Save button: saves JSON to disk/state only when clicked
     private val saveButton =
         ButtonFactory.createDefaultButton(
             JsonBoxBundle.message("jsonbox.dialog.button.save.quick"),
@@ -153,35 +196,76 @@ class JsonBoxDialog(
                 } else {
                     JsonItem(title = jsonNameField.text, json = content)
                 }
+
                 if (onSave != null) {
+                    // Custom callback handling
                     onSave?.invoke(newItem)
                 } else {
                     // Default behavior: Access the state service directly
-                    state.add(newItem)
+                    if (editMode) state.update(newItem) else state.add(newItem)
                 }
-                close(OK_EXIT_CODE)
+                // Close the dialog after saving
+                dispose()
             }
         }
 
     // Stringify button: converts JSON to a single-line string
     private val stringifyButton = ButtonFactory.createNormalButton(JsonBoxBundle.message("jsonbox.dialog.stringify")) {
-        val singleLine = JsonUtils.stringifyJson(editor.document.text)
-        if (singleLine != null) runWriteAction { editor.document.setText(singleLine) }
-        else Messages.showErrorDialog(
-            JsonBoxBundle.message("jsonbox.dialog.stringify.invalid.message"),
-            JsonBoxBundle.message("jsonbox.error.title")
-        )
+        val text = editor.document.text
+        val modificationStamp = editor.document.modificationStamp
+
+        ApplicationManager.getApplication().executeOnPooledThread {
+            try {
+                val singleLine = JsonUtils.stringifyJson(text)
+                ApplicationManager.getApplication().invokeLater {
+                    if (!isDisplayable || editor.document.modificationStamp != modificationStamp) return@invokeLater
+
+                    if (singleLine != null) runWriteAction { editor.document.setText(singleLine) }
+                    else Messages.showErrorDialog(
+                        JsonBoxBundle.message("jsonbox.dialog.stringify.invalid.message"),
+                        JsonBoxBundle.message("jsonbox.error.title")
+                    )
+                }
+            } catch (e: Exception) {
+                ApplicationManager.getApplication().invokeLater {
+                    if (!isDisplayable || editor.document.modificationStamp != modificationStamp) return@invokeLater
+                    Messages.showErrorDialog(
+                        JsonBoxBundle.message("jsonbox.dialog.stringify.invalid.message"),
+                        JsonBoxBundle.message("jsonbox.error.title")
+                    )
+                }
+            }
+        }
     }
 
     // DeStringify button: converts single-line JSON back to formatted JSON
     private val deStringifyButton =
         ButtonFactory.createNormalButton(JsonBoxBundle.message("jsonbox.dialog.deStringify")) {
-            val deStringify = JsonUtils.deStringifyJson(editor.document.text)
-            if (deStringify != null) runWriteAction { editor.document.setText(deStringify) }
-            else Messages.showErrorDialog(
-                JsonBoxBundle.message("jsonbox.dialog.deStringify.invalid.message"),
-                JsonBoxBundle.message("jsonbox.error.title")
-            )
+            val text = editor.document.text
+            val modificationStamp = editor.document.modificationStamp
+
+            ApplicationManager.getApplication().executeOnPooledThread {
+                try {
+                    val deStringify = JsonUtils.deStringifyJson(text)
+                    ApplicationManager.getApplication().invokeLater {
+                        if (!isDisplayable || editor.document.modificationStamp != modificationStamp) return@invokeLater
+
+                        if (deStringify != null) runWriteAction { editor.document.setText(deStringify) }
+                        else Messages.showErrorDialog(
+                            JsonBoxBundle.message("jsonbox.dialog.deStringify.invalid.message"),
+                            JsonBoxBundle.message("jsonbox.error.title")
+                        )
+                    }
+                } catch (e: Exception) {
+                    ApplicationManager.getApplication().invokeLater {
+                        if (!isDisplayable || editor.document.modificationStamp != modificationStamp) return@invokeLater
+                        Messages.showErrorDialog(
+                            JsonBoxBundle.message("jsonbox.dialog.deStringify.invalid.message"),
+                            JsonBoxBundle.message("jsonbox.error.title")
+                        )
+                    }
+                }
+            }
         }
 
     // Copy button: copies current JSON to system clipboard
@@ -194,78 +278,98 @@ class JsonBoxDialog(
             )
         }
 
-    private val compareButton =
-        ButtonFactory.createNormalButton(JsonBoxBundle.message("jsonbox.dialog.compare.json"), AllIcons.Actions.Diff) {
-            val content = editor.document.text
-            if (content.isNotEmpty()) showEditableJsonCompareDialog(project, content)
-        }
-
-
     // -------------------
     // Initialization
     // -------------------
     init {
-        title = JsonBoxBundle.message("jsonbox.title")  // Dialog title
-        // Initialize JSON name
+        title = JsonBoxBundle.message("jsonbox.title")
+        defaultCloseOperation = WindowConstants.DISPOSE_ON_CLOSE
+
         jsonNameField.text =
             if (jsonNameField.text.isNullOrBlank()) generateDefaultName()
             else jsonNameField.text
 
+        // Listen for document changes to update validity indicators in real-time
         editor.document.addDocumentListener(object : DocumentListener {
             override fun documentChanged(event: DocumentEvent) {
                 updateIndicators(editor.document.text)
             }
         })
-        init()
+
+        contentPane = createCenterPanel()
+        pack()
+
+        // Ensure minimum size so buttons are not hidden
+        minimumSize = Dimension(900, 600)
+
+        // Match the IDE window's icon and center relative to the IDE on the correct monitor
+        val ideFrame = WindowManager.getInstance().getFrame(project)
+        if (ideFrame != null) {
+            this.iconImages = ideFrame.iconImages
+        }
+        setLocationRelativeTo(ideFrame)
+
+        // Initial validation check
         updateIndicators(editor.document.text)
+    }
+
+    /**
+     * Overriding dispose to ensure the editor is always released,
+     * especially important for unit tests.
+     */
+    override fun dispose() {
+        if (!editor.isDisposed) {
+            EditorFactory.getInstance().releaseEditor(editor)
+        }
+        super.dispose()
     }
 
     // -------------------
     // Build UI Components
     // -------------------
-    override fun createCenterPanel(): JComponent {
-        // Main panel uses BorderLayout
-        val panel = JBPanel<JBPanel<*>>(BorderLayout(10, 10))// ---------- Top: JSON name ----------
-        val namePanel = JBPanel<JBPanel<*>>(BorderLayout(5, 5))
+    private fun createCenterPanel(): JComponent {
+        val panel = JBPanel<JBPanel<*>>(BorderLayout(10, 10))
+        panel.border = JBUI.Borders.empty(10)
 
+        // ---------- Top: JSON name ----------
+        val namePanel = JBPanel<JBPanel<*>>(BorderLayout(5, 5))
         namePanel.add(JLabel(JsonBoxBundle.message("jsonbox.dialog.label.name")), BorderLayout.WEST)
         namePanel.add(jsonNameField, BorderLayout.CENTER)
-
         panel.add(namePanel, BorderLayout.NORTH)
 
+        // ---------- Center: Editor and Status ----------
         val centerPanel = JPanel(BorderLayout())
         centerPanel.add(createStatusPanel(), BorderLayout.NORTH)
         centerPanel.add(editor.component, BorderLayout.CENTER)
-
         panel.add(centerPanel, BorderLayout.CENTER)
 
-        // Button panel at the bottom
+        // ---------- Bottom: Buttons ----------
         val buttonPanel = JBPanel<JBPanel<*>>(FlowLayout(FlowLayout.CENTER, 10, 10))
-        buttonPanel.add(validateButton)
         buttonPanel.add(formatButton)
-        buttonPanel.add(compareButton)
+        buttonPanel.add(minifyButton)
         buttonPanel.add(stringifyButton)
         buttonPanel.add(deStringifyButton)
         buttonPanel.add(copyButton)
         buttonPanel.add(saveButton)
         buttonPanel.add(searchButton, 0)
 
-        panel.add(buttonPanel, BorderLayout.SOUTH)
+        // Wrap the button panel in a scroll pane just in case the window gets too narrow
+        val buttonScrollPane = JBScrollPane(buttonPanel).apply {
+            border = JBUI.Borders.empty()
+            verticalScrollBarPolicy = ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER
+            horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED
+        }
 
-        // Set a fixed preferred size so the dialog doesn't shrink when empty
+        panel.add(buttonScrollPane, BorderLayout.SOUTH)
+
         panel.preferredSize = Dimension(900, 600)
         return panel
     }
 
+    /**
+     * Creates the top panel containing the validity status and size labels.
+     */
     private fun createStatusPanel(): JComponent {
-        statusLabel = JLabel().apply {
-            foreground = UIUtil.getContextHelpForeground()
-        }
-
-        sizeLabel = JLabel().apply {
-            foreground = UIUtil.getContextHelpForeground()
-        }
-
         return JPanel(FlowLayout(FlowLayout.LEFT, 8, 0)).apply {
             isOpaque = false
             border = JBUI.Borders.emptyBottom(4)
@@ -274,12 +378,14 @@ class JsonBoxDialog(
         }
     }
 
+    /**
+     * Determines whether to run validation synchronously or asynchronously based on payload size.
+     */
     private fun updateIndicators(json: String) {
         if (json.isBlank()) {
             showEmpty(json)
             return
         }
-
         if (JsonIndicatorUtil.isLarge(json)) {
             validateAsync(json)
         } else {
@@ -297,9 +403,7 @@ class JsonBoxDialog(
 
     private fun validateAsync(json: String) {
         UiAsync.runBackground(
-            task = {
-                JsonIndicatorUtil.validate(json)
-            },
+            task = { JsonIndicatorUtil.validate(json) },
             ui = { result ->
                 when (result) {
                     ValidationResult.Valid -> showValid(json)
@@ -309,6 +413,10 @@ class JsonBoxDialog(
             }
         )
     }
+
+    // -------------------
+    // UI Update Methods
+    // -------------------
 
     private fun showValid(json: String) {
         statusLabel.text = JsonBoxBundle.message("jsonbox.preview.valid")
@@ -327,17 +435,4 @@ class JsonBoxDialog(
         statusLabel.foreground = UIUtil.getErrorForeground()
         sizeLabel.text = " | ${JsonIndicatorUtil.formatSize(json)}"
     }
-
-    // -------------------
-    // Clean up editor resources
-    // -------------------
-    override fun dispose() {
-        EditorFactory.getInstance().releaseEditor(editor)
-        super.dispose()
-    }
-
-    // -------------------
-    // Hide default OK/Cancel buttons
-    // -------------------
-    override fun createActions(): Array<out Action?> = arrayOf()
 }

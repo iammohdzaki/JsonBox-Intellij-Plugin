@@ -16,6 +16,7 @@ import com.intellij.ui.EditorNotificationProvider
 import com.intellij.ui.EditorNotifications
 import java.util.function.Function
 import javax.swing.JComponent
+import javax.swing.SwingUtilities
 
 /**
  * Provides editor notifications for JSON files, allowing users to quickly open or add them to JsonBox.
@@ -37,17 +38,24 @@ class JsonBoxNotificationProvider : EditorNotificationProvider {
             val isAdded = state.contains(file.presentableName)
             panel.text = JsonBoxBundle.message("jsonbox.notification.description")
 
+            // "Open in JsonBox" action
             panel.createActionLabel(JsonBoxBundle.message("jsonbox.notification.title")) {
                 val document = FileDocumentManager.getInstance().getDocument(file)
                 val content = document?.text ?: file.inputStream.bufferedReader().use { it.readText() }
-                JsonBoxDialog(project, file, JsonItem(title = file.presentableName, json = content)).show()
+                
+                // Show the JsonBoxDialog on the EDT since it creates UI components
+                SwingUtilities.invokeLater {
+                    JsonBoxDialog(project, file, JsonItem(title = file.presentableName, json = content)).apply { isVisible = true }
+                }
             }
 
+            // "Add to Quick List" action
             panel.createActionLabel(JsonBoxBundle.message(if (isAdded) "jsonbox.notification.added" else "jsonbox.notification.add")) {
                 if (!isAdded) {
                     val document = FileDocumentManager.getInstance().getDocument(file)
                     val content = document?.text ?: file.inputStream.bufferedReader().use { it.readText() }
                     state.add(JsonItem(title = file.presentableName, json = content))
+
                     JsonBoxNotifications.notify(
                         project,
                         JsonBoxBundle.message("jsonbox.title"),

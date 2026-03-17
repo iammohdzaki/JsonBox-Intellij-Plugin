@@ -20,6 +20,7 @@
 [![Downloads](https://img.shields.io/jetbrains/plugin/d/27770.svg)](https://plugins.jetbrains.com/plugin/27770)
 [![GitHub Repo stars](https://img.shields.io/github/stars/iammohdzaki/JsonBox?style=flat-square)](https://github.com/iammohdzaki/JsonBox/stargazers)
 [![GitHub Release](https://img.shields.io/github/v/release/iammohdzaki/JsonBox)](https://github.com/iammohdzaki/JsonBox/releases)
+[![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/iammohdzaki/JsonBox-Intellij-Plugin?utm_source=oss&utm_medium=github&utm_campaign=iammohdzaki%2FJsonBox-Intellij-Plugin&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)](https://coderabbit.ai)
 
 </div>
 
@@ -67,10 +68,10 @@ Download from [GitHub Releases](https://github.com/iammohdzaki/JsonBox/releases/
 
 ## 🖼 Plugin Preview
 
-<img src="preview/notification.png" alt="JsonBox Logo"/>
-<img src="preview/quicklist_dialog.png" alt="JsonBox Logo"/>
-<img src="preview/jsonbox_dialog.png" alt="JsonBox Logo"/>
-<img src="preview/diff_dialog.png" alt="JsonBox Logo"/>
+<img src="preview/jbS1.png" alt="JsonBox main window preview"/>
+<img src="preview/jbS2.png" alt="JsonBox quick list preview"/>
+<img src="preview/jbS3.png" alt="JsonBox formatter and validator preview"/>
+<img src="preview/jbS4.png" alt="JsonBox diff view preview"/>
 
 ---
 
