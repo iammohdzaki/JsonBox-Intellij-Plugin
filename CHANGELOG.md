@@ -9,4 +9,4 @@
 
 ### Fixed
 
-- Improved Json Formatting Performance
+- Improved JSON Formatting Performance
