@@ -31,6 +31,23 @@ object JsonUtils {
         }
     }
 
+    /**
+     * Formats (pretty-prints) a JSON string.
+     * This is much faster than PSI-based formatting for large JSON payloads.
+     *
+     * @param json The JSON string to format.
+     * @return The formatted JSON string, or null if it's invalid.
+     */
+    fun formatJson(json: String?): String? {
+        if (json.isNullOrBlank()) return null
+        return try {
+            val jsonElement = JsonParser.parseString(json)
+            val prettyGson = GsonBuilder().setPrettyPrinting().create()
+            prettyGson.toJson(jsonElement)
+        } catch (e: Exception) {
+            null
+        }
+    }
 
     /**
      * Converts a JSON string into a stringified version (escaped and wrapped in quotes).

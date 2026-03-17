@@ -13,6 +13,7 @@ import com.github.iammohdzaki.jsonbox.utils.ValidationResult
 import com.intellij.find.EditorSearchSession
 import com.intellij.icons.AllIcons
 import com.intellij.json.JsonLanguage
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.runWriteAction
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.service
@@ -105,28 +106,46 @@ class JsonBoxDialog(
             return@createNormalButton
         }
 
-        // Must run in a WriteCommandAction to modify PSI/Documents safely
-        WriteCommandAction.runWriteCommandAction(project) {
+        // Run formatting on a background thread to prevent UI freezing
+        ApplicationManager.getApplication().executeOnPooledThread {
             try {
-                // Create a temporary PSI file if editor is not backed by a real file
-                val psiFile = if (editor.virtualFile != null) {
-                    PsiManager.getInstance(project).findFile(editor.virtualFile!!)!!
-                } else {
-                    PsiFileFactory.getInstance(project)
-                        .createFileFromText("temp.json", JsonLanguage.INSTANCE, text)
+                // Try lightweight string-based formatting first for performance
+                val formattedStr = JsonUtils.formatJson(text)
+                
+                ApplicationManager.getApplication().invokeLater {
+                    if (formattedStr != null) {
+                        // If fast formatting succeeds, update document directly
+                        runWriteAction { editor.document.setText(formattedStr) }
+                    } else {
+                        // Fallback to heavy PSI-based formatting if necessary (e.g., partial syntax errors)
+                        WriteCommandAction.runWriteCommandAction(project) {
+                            try {
+                                val psiFile = if (editor.virtualFile != null) {
+                                    PsiManager.getInstance(project).findFile(editor.virtualFile!!)!!
+                                } else {
+                                    PsiFileFactory.getInstance(project)
+                                        .createFileFromText("temp.json", JsonLanguage.INSTANCE, text)
+                                }
+
+                                CodeStyleManager.getInstance(project).reformat(psiFile)
+                                editor.document.setText(psiFile.text)
+
+                            } catch (e: Exception) {
+                                Messages.showErrorDialog(
+                                    "${e.message}",
+                                    JsonBoxBundle.message("jsonbox.dialog.format.error.title")
+                                )
+                            }
+                        }
+                    }
                 }
-
-                // Format using CodeStyleManager
-                CodeStyleManager.getInstance(project).reformat(psiFile)
-
-                // Update editor with formatted text
-                editor.document.setText(psiFile.text)
-
             } catch (e: Exception) {
-                Messages.showErrorDialog(
-                    "${e.message}",
-                    JsonBoxBundle.message("jsonbox.dialog.format.error.title")
-                )
+                ApplicationManager.getApplication().invokeLater {
+                    Messages.showErrorDialog(
+                        "${e.message}",
+                        JsonBoxBundle.message("jsonbox.dialog.format.error.title")
+                    )
+                }
             }
         }
     }
@@ -159,23 +178,31 @@ class JsonBoxDialog(
 
     // Stringify button: converts JSON to a single-line string
     private val stringifyButton = ButtonFactory.createNormalButton(JsonBoxBundle.message("jsonbox.dialog.stringify")) {
-        val singleLine = JsonUtils.stringifyJson(editor.document.text)
-        if (singleLine != null) runWriteAction { editor.document.setText(singleLine) }
-        else Messages.showErrorDialog(
-            JsonBoxBundle.message("jsonbox.dialog.stringify.invalid.message"),
-            JsonBoxBundle.message("jsonbox.error.title")
-        )
+        ApplicationManager.getApplication().executeOnPooledThread {
+            val singleLine = JsonUtils.stringifyJson(editor.document.text)
+            ApplicationManager.getApplication().invokeLater {
+                if (singleLine != null) runWriteAction { editor.document.setText(singleLine) }
+                else Messages.showErrorDialog(
+                    JsonBoxBundle.message("jsonbox.dialog.stringify.invalid.message"),
+                    JsonBoxBundle.message("jsonbox.error.title")
+                )
+            }
+        }
     }
 
     // DeStringify button: converts single-line JSON back to formatted JSON
     private val deStringifyButton =
         ButtonFactory.createNormalButton(JsonBoxBundle.message("jsonbox.dialog.deStringify")) {
-            val deStringify = JsonUtils.deStringifyJson(editor.document.text)
-            if (deStringify != null) runWriteAction { editor.document.setText(deStringify) }
-            else Messages.showErrorDialog(
-                JsonBoxBundle.message("jsonbox.dialog.deStringify.invalid.message"),
-                JsonBoxBundle.message("jsonbox.error.title")
-            )
+            ApplicationManager.getApplication().executeOnPooledThread {
+                val deStringify = JsonUtils.deStringifyJson(editor.document.text)
+                ApplicationManager.getApplication().invokeLater {
+                    if (deStringify != null) runWriteAction { editor.document.setText(deStringify) }
+                    else Messages.showErrorDialog(
+                        JsonBoxBundle.message("jsonbox.dialog.deStringify.invalid.message"),
+                        JsonBoxBundle.message("jsonbox.error.title")
+                    )
+                }
+            }
         }
 
     // Copy button: copies current JSON to system clipboard
