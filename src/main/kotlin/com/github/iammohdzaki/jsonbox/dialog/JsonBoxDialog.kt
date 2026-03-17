@@ -219,7 +219,7 @@ class JsonBoxDialog(
                 val singleLine = JsonUtils.stringifyJson(text)
                 ApplicationManager.getApplication().invokeLater {
                     if (!isDisplayable || editor.document.modificationStamp != modificationStamp) return@invokeLater
-                    
+
                     if (singleLine != null) runWriteAction { editor.document.setText(singleLine) }
                     else Messages.showErrorDialog(
                         JsonBoxBundle.message("jsonbox.dialog.stringify.invalid.message"),
@@ -227,7 +227,13 @@ class JsonBoxDialog(
                     )
                 }
             } catch (e: Exception) {
-                // Ignore exceptions on pooled thread, log them in JsonUtils instead
+                ApplicationManager.getApplication().invokeLater {
+                    if (!isDisplayable || editor.document.modificationStamp != modificationStamp) return@invokeLater
+                    Messages.showErrorDialog(
+                        JsonBoxBundle.message("jsonbox.dialog.stringify.invalid.message"),
+                        JsonBoxBundle.message("jsonbox.error.title")
+                    )
+                }
             }
         }
     }
@@ -251,7 +257,13 @@ class JsonBoxDialog(
                         )
                     }
                 } catch (e: Exception) {
-                    // Ignore exceptions on pooled thread, log them in JsonUtils instead
+                    ApplicationManager.getApplication().invokeLater {
+                        if (!isDisplayable || editor.document.modificationStamp != modificationStamp) return@invokeLater
+                        Messages.showErrorDialog(
+                            JsonBoxBundle.message("jsonbox.dialog.deStringify.invalid.message"),
+                            JsonBoxBundle.message("jsonbox.error.title")
+                        )
+                    }
                 }
             }
         }
