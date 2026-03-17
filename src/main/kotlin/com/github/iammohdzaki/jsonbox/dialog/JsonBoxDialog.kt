@@ -38,12 +38,11 @@ import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.datatransfer.StringSelection
-import java.awt.event.WindowAdapter
-import java.awt.event.WindowEvent
 import javax.swing.JComponent
 import javax.swing.JFrame
 import javax.swing.JLabel
 import javax.swing.JPanel
+import javax.swing.ScrollPaneConstants
 import javax.swing.WindowConstants
 
 /**
@@ -72,7 +71,7 @@ class JsonBoxDialog(
     private val statusLabel: JLabel = JLabel().apply {
         foreground = UIUtil.getContextHelpForeground()
     }
-    
+
     // Size label to show the size of the JSON content
     private val sizeLabel: JLabel = JLabel().apply {
         foreground = UIUtil.getContextHelpForeground()
@@ -106,13 +105,19 @@ class JsonBoxDialog(
             return@createNormalButton
         }
 
+        // Capture the modification stamp before running the async task
+        val modificationStamp = editor.document.modificationStamp
+
         // Run formatting on a background thread to prevent UI freezing
         ApplicationManager.getApplication().executeOnPooledThread {
             try {
                 // Try lightweight string-based formatting first for performance
                 val formattedStr = JsonUtils.formatJson(text)
-                
+
                 ApplicationManager.getApplication().invokeLater {
+                    // Check if the document was modified or if the frame was disposed
+                    if (!isDisplayable || editor.document.modificationStamp != modificationStamp) return@invokeLater
+
                     if (formattedStr != null) {
                         // If fast formatting succeeds, update document directly
                         runWriteAction { editor.document.setText(formattedStr) }
@@ -141,10 +146,52 @@ class JsonBoxDialog(
                 }
             } catch (e: Exception) {
                 ApplicationManager.getApplication().invokeLater {
-                    Messages.showErrorDialog(
-                        "${e.message}",
-                        JsonBoxBundle.message("jsonbox.dialog.format.error.title")
-                    )
+                    if (isDisplayable) {
+                        Messages.showErrorDialog(
+                            "${e.message}",
+                            JsonBoxBundle.message("jsonbox.dialog.format.error.title")
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private val minifyButton = ButtonFactory.createNormalButton(
+        JsonBoxBundle.message("jsonbox.dialog.minify.json"),
+        AllIcons.Actions.Collapseall
+    ) {
+        val text = editor.document.text
+        if (text.isBlank()) {
+            return@createNormalButton
+        }
+
+        val modificationStamp = editor.document.modificationStamp
+
+        ApplicationManager.getApplication().executeOnPooledThread {
+            try {
+                val minifiedStr = JsonUtils.minifyJson(text)
+
+                ApplicationManager.getApplication().invokeLater {
+                    if (!isDisplayable || editor.document.modificationStamp != modificationStamp) return@invokeLater
+
+                    if (minifiedStr != null) {
+                        runWriteAction { editor.document.setText(minifiedStr) }
+                    } else {
+                        Messages.showErrorDialog(
+                            JsonBoxBundle.message("jsonbox.dialog.format.error.message"), // reuse formatting error message
+                            JsonBoxBundle.message("jsonbox.dialog.format.error.title")
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                ApplicationManager.getApplication().invokeLater {
+                    if (isDisplayable) {
+                        Messages.showErrorDialog(
+                            "${e.message}",
+                            JsonBoxBundle.message("jsonbox.error.title")
+                        )
+                    }
                 }
             }
         }
@@ -163,7 +210,7 @@ class JsonBoxDialog(
                 } else {
                     JsonItem(title = jsonNameField.text, json = content)
                 }
-                
+
                 if (onSave != null) {
                     // Custom callback handling
                     onSave?.invoke(newItem)
@@ -178,9 +225,14 @@ class JsonBoxDialog(
 
     // Stringify button: converts JSON to a single-line string
     private val stringifyButton = ButtonFactory.createNormalButton(JsonBoxBundle.message("jsonbox.dialog.stringify")) {
+        val text = editor.document.text
+        val modificationStamp = editor.document.modificationStamp
+
         ApplicationManager.getApplication().executeOnPooledThread {
-            val singleLine = JsonUtils.stringifyJson(editor.document.text)
+            val singleLine = JsonUtils.stringifyJson(text)
             ApplicationManager.getApplication().invokeLater {
+                if (!isDisplayable || editor.document.modificationStamp != modificationStamp) return@invokeLater
+
                 if (singleLine != null) runWriteAction { editor.document.setText(singleLine) }
                 else Messages.showErrorDialog(
                     JsonBoxBundle.message("jsonbox.dialog.stringify.invalid.message"),
@@ -193,9 +245,14 @@ class JsonBoxDialog(
     // DeStringify button: converts single-line JSON back to formatted JSON
     private val deStringifyButton =
         ButtonFactory.createNormalButton(JsonBoxBundle.message("jsonbox.dialog.deStringify")) {
+            val text = editor.document.text
+            val modificationStamp = editor.document.modificationStamp
+
             ApplicationManager.getApplication().executeOnPooledThread {
-                val deStringify = JsonUtils.deStringifyJson(editor.document.text)
+                val deStringify = JsonUtils.deStringifyJson(text)
                 ApplicationManager.getApplication().invokeLater {
+                    if (!isDisplayable || editor.document.modificationStamp != modificationStamp) return@invokeLater
+
                     if (deStringify != null) runWriteAction { editor.document.setText(deStringify) }
                     else Messages.showErrorDialog(
                         JsonBoxBundle.message("jsonbox.dialog.deStringify.invalid.message"),
@@ -215,13 +272,6 @@ class JsonBoxDialog(
             )
         }
 
-    // Compare button: opens IntelliJ's native diff viewer
-    private val compareButton =
-        ButtonFactory.createNormalButton(JsonBoxBundle.message("jsonbox.dialog.compare.json"), AllIcons.Actions.Diff) {
-            val content = editor.document.text
-            if (content.isNotEmpty()) showEditableJsonCompareDialog(project, content)
-        }
-
     // -------------------
     // Initialization
     // -------------------
@@ -239,26 +289,19 @@ class JsonBoxDialog(
                 updateIndicators(editor.document.text)
             }
         })
-        
+
         contentPane = createCenterPanel()
         pack()
-        
+
         // Ensure minimum size so buttons are not hidden
         minimumSize = Dimension(900, 600)
-        
+
         // Match the IDE window's icon and center relative to the IDE on the correct monitor
         val ideFrame = WindowManager.getInstance().getFrame(project)
         if (ideFrame != null) {
             this.iconImages = ideFrame.iconImages
         }
         setLocationRelativeTo(ideFrame)
-        
-        // Clean up editor when the frame is closed via the X button or dispose()
-        addWindowListener(object : WindowAdapter() {
-            override fun windowClosed(e: WindowEvent?) {
-                EditorFactory.getInstance().releaseEditor(editor)
-            }
-        })
 
         // Initial validation check
         updateIndicators(editor.document.text)
@@ -279,7 +322,7 @@ class JsonBoxDialog(
     private fun createCenterPanel(): JComponent {
         val panel = JBPanel<JBPanel<*>>(BorderLayout(10, 10))
         panel.border = JBUI.Borders.empty(10)
-        
+
         // ---------- Top: JSON name ----------
         val namePanel = JBPanel<JBPanel<*>>(BorderLayout(5, 5))
         namePanel.add(JLabel(JsonBoxBundle.message("jsonbox.dialog.label.name")), BorderLayout.WEST)
@@ -295,20 +338,20 @@ class JsonBoxDialog(
         // ---------- Bottom: Buttons ----------
         val buttonPanel = JBPanel<JBPanel<*>>(FlowLayout(FlowLayout.CENTER, 10, 10))
         buttonPanel.add(formatButton)
-        buttonPanel.add(compareButton)
+        buttonPanel.add(minifyButton)
         buttonPanel.add(stringifyButton)
         buttonPanel.add(deStringifyButton)
         buttonPanel.add(copyButton)
         buttonPanel.add(saveButton)
         buttonPanel.add(searchButton, 0)
-        
+
         // Wrap the button panel in a scroll pane just in case the window gets too narrow
         val buttonScrollPane = JBScrollPane(buttonPanel).apply {
             border = JBUI.Borders.empty()
-            verticalScrollBarPolicy = JBScrollPane.VERTICAL_SCROLLBAR_NEVER
-            horizontalScrollBarPolicy = JBScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED
+            verticalScrollBarPolicy = ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER
+            horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED
         }
-        
+
         panel.add(buttonScrollPane, BorderLayout.SOUTH)
 
         panel.preferredSize = Dimension(900, 600)

@@ -1,12 +1,14 @@
 package com.github.iammohdzaki.jsonbox.editor
 
 import com.intellij.json.JsonLanguage
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.editor.colors.EditorColorsManager
 import com.intellij.openapi.editor.ex.EditorEx
 import com.intellij.openapi.fileTypes.FileTypeManager
 import com.intellij.openapi.fileTypes.SyntaxHighlighterFactory
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Computable
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiManager
@@ -30,8 +32,12 @@ object JsonEditorFactory {
      */
     fun createEditor(project: Project, virtualFile: VirtualFile?, initialText: String = ""): EditorEx {
         val lightFile = LightVirtualFile("temp.json", JsonLanguage.INSTANCE, initialText)
-        val psiFile = PsiManager.getInstance(project).findFile(lightFile)!!
-        val document = PsiDocumentManager.getInstance(project).getDocument(psiFile)!!
+        
+        // PSI and Document access must be wrapped in a ReadAction
+        val document = ApplicationManager.getApplication().runReadAction(Computable {
+            val psiFile = PsiManager.getInstance(project).findFile(lightFile)!!
+            PsiDocumentManager.getInstance(project).getDocument(psiFile)!!
+        })
 
         val editor = EditorFactory.getInstance().createEditor(
             document,

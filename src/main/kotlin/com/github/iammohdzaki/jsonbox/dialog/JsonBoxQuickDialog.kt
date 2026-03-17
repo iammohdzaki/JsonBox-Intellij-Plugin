@@ -37,8 +37,6 @@ import java.awt.FlowLayout
 import java.awt.datatransfer.StringSelection
 import java.awt.event.KeyAdapter
 import java.awt.event.KeyEvent
-import java.awt.event.WindowAdapter
-import java.awt.event.WindowEvent
 import javax.swing.DefaultListCellRenderer
 import javax.swing.DefaultListModel
 import javax.swing.JComponent
@@ -64,7 +62,7 @@ class JsonBoxQuickDialog(
     private val allItems = mutableListOf<JsonItem>()
     private val listModel = DefaultListModel<JsonItem>()
     private val jsonList = JBList(listModel)
-    
+
     // ---- Right preview editor (read-only) ----
     private val previewEditor: EditorEx =
         EditorFactory.getInstance().createEditor(
@@ -89,26 +87,19 @@ class JsonBoxQuickDialog(
         initEditor()
         loadItems()
         initSearch()
-        
+
         contentPane = createCenterPanel()
         pack()
-        
+
         // Ensure minimum size
         minimumSize = Dimension(900, 550)
-        
+
         // Match the IDE window's icon and center relative to the IDE
         val ideFrame = WindowManager.getInstance().getFrame(project)
         if (ideFrame != null) {
             this.iconImages = ideFrame.iconImages
         }
         setLocationRelativeTo(ideFrame)
-        
-        // Clean up editor when the frame is closed via the X button or dispose()
-        addWindowListener(object : WindowAdapter() {
-            override fun windowClosed(e: WindowEvent?) {
-                EditorFactory.getInstance().releaseEditor(previewEditor)
-            }
-        })
     }
 
     /**
@@ -234,7 +225,7 @@ class JsonBoxQuickDialog(
                 previewEditor.document.setText(item.json)
             }
         }
-        
+
         jsonList.cellRenderer = object : DefaultListCellRenderer() {
             override fun getListCellRendererComponent(
                 list: JList<*>,
@@ -310,7 +301,7 @@ class JsonBoxQuickDialog(
     }
 
     // ---------------- Actions ----------------
-    
+
     /**
      * Filters the list of JSON snippets based on the search query.
      */

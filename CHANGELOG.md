@@ -6,6 +6,7 @@
 
 ### Added
 - Moved the current dialogs to windows to provide better UX.
+- Added Minify JSON Feature
 
 ### Fixed
 

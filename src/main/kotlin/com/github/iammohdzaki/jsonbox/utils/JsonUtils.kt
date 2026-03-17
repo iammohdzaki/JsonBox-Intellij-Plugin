@@ -50,6 +50,22 @@ object JsonUtils {
     }
 
     /**
+     * Minifies a JSON string, removing all unnecessary whitespace and newlines.
+     * 
+     * @param json The JSON string to minify.
+     * @return The minified JSON string, or null if it's invalid.
+     */
+    fun minifyJson(json: String?): String? {
+        if (json.isNullOrBlank()) return null
+        return try {
+            val jsonElement = JsonParser.parseString(json)
+            gson.toJson(jsonElement) // Default gson behavior is minified
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
      * Converts a JSON string into a stringified version (escaped and wrapped in quotes).
      *
      * @param json The JSON string to stringify.
