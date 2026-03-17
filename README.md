@@ -20,6 +20,7 @@
 [![Downloads](https://img.shields.io/jetbrains/plugin/d/27770.svg)](https://plugins.jetbrains.com/plugin/27770)
 [![GitHub Repo stars](https://img.shields.io/github/stars/iammohdzaki/JsonBox?style=flat-square)](https://github.com/iammohdzaki/JsonBox/stargazers)
 [![GitHub Release](https://img.shields.io/github/v/release/iammohdzaki/JsonBox)](https://github.com/iammohdzaki/JsonBox/releases)
+[![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/iammohdzaki/JsonBox-Intellij-Plugin?utm_source=oss&utm_medium=github&utm_campaign=iammohdzaki%2FJsonBox-Intellij-Plugin&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)](https://coderabbit.ai)
 
 </div>
 
