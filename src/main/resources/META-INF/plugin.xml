@@ -15,9 +15,11 @@
                 id="JsonBox.Actions"
                 text="JsonBox"
                 description="Tools for viewing, formatting, and managing JSON"
+                icon="/icons/jsonboxToolbar.svg"
                 popup="true">
 
             <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <add-to-group group-id="MainToolbarRight" anchor="last"/>
 
             <!-- Open main JsonBox dialog -->
             <action

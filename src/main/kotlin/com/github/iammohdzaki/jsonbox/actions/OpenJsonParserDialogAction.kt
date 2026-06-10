@@ -15,7 +15,7 @@ class OpenJsonParserDialogAction : AnAction() {
 
     override fun actionPerformed(event: AnActionEvent) {
         event.project?.let {
-            JsonBoxDialog(it, virtualFile = null).show()
+            JsonBoxDialog(it, virtualFile = null).apply { isVisible = true }
         }
     }
 

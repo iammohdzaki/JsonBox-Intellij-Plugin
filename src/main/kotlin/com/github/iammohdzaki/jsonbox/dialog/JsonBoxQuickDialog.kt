@@ -22,11 +22,7 @@ import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.wm.WindowManager
-import com.intellij.ui.DocumentAdapter
-import com.intellij.ui.SearchTextField
-import com.intellij.ui.SimpleColoredComponent
-import com.intellij.ui.SimpleTextAttributes
-import com.intellij.ui.ToolbarDecorator
+import com.intellij.ui.*
 import com.intellij.ui.components.JBList
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
@@ -37,16 +33,9 @@ import java.awt.FlowLayout
 import java.awt.datatransfer.StringSelection
 import java.awt.event.KeyAdapter
 import java.awt.event.KeyEvent
-import javax.swing.DefaultListCellRenderer
-import javax.swing.DefaultListModel
-import javax.swing.JComponent
-import javax.swing.JFrame
-import javax.swing.JLabel
-import javax.swing.JList
-import javax.swing.JPanel
-import javax.swing.ListSelectionModel
-import javax.swing.WindowConstants
+import javax.swing.*
 import javax.swing.event.DocumentEvent
+import javax.swing.text.BadLocationException
 
 /**
  * A completely independent top-level OS window for managing saved JSON snippets.
@@ -288,7 +277,14 @@ class JsonBoxQuickDialog(
     private fun initSearch() {
         searchField.addDocumentListener(object : DocumentAdapter() {
             override fun textChanged(e: DocumentEvent) {
-                applyFilter(searchField.text)
+                // Read text directly from the document to avoid the "one character behind"
+                // stale-text issue: DocumentListener fires before getText() is updated.
+                val query = try {
+                    e.document.getText(0, e.document.length)
+                } catch (ex: BadLocationException) {
+                    ""
+                }
+                applyFilter(query)
             }
         })
         searchField.textEditor.addKeyListener(object : KeyAdapter() {

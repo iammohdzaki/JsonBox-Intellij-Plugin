@@ -5,9 +5,10 @@
 ## [Unreleased]
 
 ### Added
-- Moved the current dialogs to windows to provide better UX.
-- Added Minify JSON Feature
+
+- Added JsonBox to Toolbar for Quick Access
 
 ### Fixed
 
-- Improved JSON Formatting Performance
+- Fixed Search on JsonBox not working
+- Migrated from deprecated dependencies

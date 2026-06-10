@@ -4,15 +4,12 @@ import com.github.iammohdzaki.jsonbox.components.ButtonFactory
 import com.github.iammohdzaki.jsonbox.editor.JsonEditorFactory
 import com.github.iammohdzaki.jsonbox.persistance.JsonQuickListState
 import com.github.iammohdzaki.jsonbox.persistance.model.JsonItem
-import com.github.iammohdzaki.jsonbox.utils.JsonBoxBundle
-import com.github.iammohdzaki.jsonbox.utils.JsonIndicatorUtil
-import com.github.iammohdzaki.jsonbox.utils.JsonUtils
-import com.github.iammohdzaki.jsonbox.utils.UiAsync
+import com.github.iammohdzaki.jsonbox.utils.*
 import com.github.iammohdzaki.jsonbox.utils.Utils.generateDefaultName
-import com.github.iammohdzaki.jsonbox.utils.ValidationResult
 import com.intellij.find.EditorSearchSession
 import com.intellij.icons.AllIcons
 import com.intellij.json.JsonLanguage
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.runWriteAction
 import com.intellij.openapi.command.WriteCommandAction
@@ -26,6 +23,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.WindowManager
+import com.intellij.openapi.wm.impl.IdeGlassPaneImpl
 import com.intellij.psi.PsiFileFactory
 import com.intellij.psi.PsiManager
 import com.intellij.psi.codeStyle.CodeStyleManager
@@ -38,12 +36,7 @@ import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.datatransfer.StringSelection
-import javax.swing.JComponent
-import javax.swing.JFrame
-import javax.swing.JLabel
-import javax.swing.JPanel
-import javax.swing.ScrollPaneConstants
-import javax.swing.WindowConstants
+import javax.swing.*
 
 /**
  * A completely independent top-level OS window for editing JSON files.
@@ -285,16 +278,25 @@ class JsonBoxDialog(
         title = JsonBoxBundle.message("jsonbox.title")
         defaultCloseOperation = WindowConstants.DISPOSE_ON_CLOSE
 
+        // Install IdeGlassPaneImpl BEFORE setting contentPane so that
+        // EditorSearchSession.start() can find it when the Search button is clicked.
+        // Without this, a plain JFrame has only a JPanel glass pane and throws:
+        // IllegalArgumentException: Glass pane should be IdeGlassPane
+        val glassPane = IdeGlassPaneImpl(rootPane)
+        rootPane.glassPane = glassPane
+        glassPane.isVisible = false
+
         jsonNameField.text =
             if (jsonNameField.text.isNullOrBlank()) generateDefaultName()
             else jsonNameField.text
 
-        // Listen for document changes to update validity indicators in real-time
+        // Listen for document changes to update validity indicators in real-time.
+        // The disposable overload ensures the listener is unregistered when this window closes.
         editor.document.addDocumentListener(object : DocumentListener {
             override fun documentChanged(event: DocumentEvent) {
                 updateIndicators(editor.document.text)
             }
-        })
+        }, Disposable { /* released via dispose() below */ })
 
         contentPane = createCenterPanel()
         pack()

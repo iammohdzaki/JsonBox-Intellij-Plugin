@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <!-- Outer box: rounded rectangle outline -->
+  <rect x="1.5" y="1.5" width="13" height="13" rx="2" ry="2"
+        fill="none" stroke="#3D3D3D" stroke-width="1.2"/>
+  <!-- Left curly brace { -->
+  <path d="M5.5 4.5 C4.5 4.5 4 5 4 5.8 L4 7 C4 7.6 3.6 8 3 8
+           C3.6 8 4 8.4 4 9 L4 10.2 C4 11 4.5 11.5 5.5 11.5"
+        fill="none" stroke="#3D3D3D" stroke-width="1.1"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Right curly brace } -->
+  <path d="M10.5 4.5 C11.5 4.5 12 5 12 5.8 L12 7 C12 7.6 12.4 8 13 8
+           C12.4 8 12 8.4 12 9 L12 10.2 C12 11 11.5 11.5 10.5 11.5"
+        fill="none" stroke="#3D3D3D" stroke-width="1.1"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
