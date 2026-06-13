@@ -56,6 +56,13 @@ class JsonBoxDialog(
     private val editor: EditorEx = JsonEditorFactory.createEditor(project, virtualFile, jsonItem?.json ?: "")
     val state = project.service<JsonQuickListState>()
 
+    /**
+     * Exposes the current editor document text for testing purposes.
+     * Tests in this package can assert clipboard-prefill or edit-mode behavior
+     * without making [editor] fully public.
+     */
+    internal val editorText: String get() = editor.document.text
+
     // Disposable used as the parent for the document listener;
     // disposed in dispose() so IntelliJ automatically unregisters the listener.
     private val listenerDisposable: Disposable = Disposer.newDisposable("JsonBoxDialog.listenerDisposable")
