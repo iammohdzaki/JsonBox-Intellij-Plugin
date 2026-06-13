@@ -47,6 +47,10 @@ class JsonBoxQuickDialog(
 
     private val state = project.service<JsonQuickListState>()
 
+    // Tracks how each visible item matched the current search query.
+    private enum class MatchType { TITLE, CONTENT }
+    private val matchTypeMap = mutableMapOf<String, MatchType>()
+
     // ---- Left list ----
     private val allItems = mutableListOf<JsonItem>()
     private val listModel = DefaultListModel<JsonItem>()
@@ -233,6 +237,13 @@ class JsonBoxQuickDialog(
                         value.title,
                         SimpleTextAttributes.REGULAR_ATTRIBUTES
                     )
+                    // Show a subtle secondary label when the match was inside the JSON content.
+                    if (matchTypeMap[value.id] == MatchType.CONTENT) {
+                        component.append(
+                            "  ${JsonBoxBundle.message("jsonbox.search.match.content")}",
+                            SimpleTextAttributes.GRAYED_SMALL_ATTRIBUTES
+                        )
+                    }
                 }
 
                 component.border = JBUI.Borders.empty(6, 10)
@@ -302,19 +313,32 @@ class JsonBoxQuickDialog(
 
     /**
      * Filters the list of JSON snippets based on the search query.
+     * Matches against both the snippet title and its JSON content.
+     * Content-only matches are annotated in the cell renderer.
      */
     private fun applyFilter(query: String) {
         listModel.clear()
+        matchTypeMap.clear()
 
-        val filteredItems =
-            if (query.isBlank()) {
-                allItems
-            } else {
-                val q = query.lowercase()
-                allItems.filter {
-                    it.title.lowercase().contains(q)
+        val filteredItems: List<JsonItem>
+        if (query.isBlank()) {
+            filteredItems = allItems
+        } else {
+            val q = query.lowercase()
+            filteredItems = allItems.filter { item ->
+                when {
+                    item.title.lowercase().contains(q) -> {
+                        matchTypeMap[item.id] = MatchType.TITLE
+                        true
+                    }
+                    item.json.lowercase().contains(q) -> {
+                        matchTypeMap[item.id] = MatchType.CONTENT
+                        true
+                    }
+                    else -> false
                 }
             }
+        }
 
         filteredItems.forEach { listModel.addElement(it) }
 

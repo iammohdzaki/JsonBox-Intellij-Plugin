@@ -21,6 +21,7 @@ import com.intellij.openapi.editor.ex.EditorEx
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.WindowManager
 import com.intellij.openapi.wm.impl.IdeGlassPaneImpl
@@ -55,6 +56,10 @@ class JsonBoxDialog(
     private val editor: EditorEx = JsonEditorFactory.createEditor(project, virtualFile, jsonItem?.json ?: "")
     val state = project.service<JsonQuickListState>()
 
+    // Disposable used as the parent for the document listener;
+    // disposed in dispose() so IntelliJ automatically unregisters the listener.
+    private val listenerDisposable: Disposable = Disposer.newDisposable("JsonBoxDialog.listenerDisposable")
+
     // Text field for naming the JSON snippet
     private val jsonNameField = JBTextField(
         jsonItem?.title ?: generateDefaultName()
@@ -68,6 +73,15 @@ class JsonBoxDialog(
     // Size label to show the size of the JSON content
     private val sizeLabel: JLabel = JLabel().apply {
         foreground = UIUtil.getContextHelpForeground()
+    }
+
+    // Banner shown when the editor content was pre-filled from the clipboard.
+    // Hidden by default; made visible in the init block when clipboard JSON is detected.
+    private val clipboardBanner: JLabel = JLabel().apply {
+        text = JsonBoxBundle.message("jsonbox.clipboard.banner")
+        foreground = UIUtil.getContextHelpForeground()
+        border = JBUI.Borders.empty(2, 4)
+        isVisible = false
     }
 
     // -------------------
@@ -291,12 +305,13 @@ class JsonBoxDialog(
             else jsonNameField.text
 
         // Listen for document changes to update validity indicators in real-time.
-        // The disposable overload ensures the listener is unregistered when this window closes.
+        // listenerDisposable is a real Disposable disposed in dispose() below,
+        // which causes IntelliJ to automatically unregister this listener.
         editor.document.addDocumentListener(object : DocumentListener {
             override fun documentChanged(event: DocumentEvent) {
                 updateIndicators(editor.document.text)
             }
-        }, Disposable { /* released via dispose() below */ })
+        }, listenerDisposable)
 
         contentPane = createCenterPanel()
         pack()
@@ -311,8 +326,34 @@ class JsonBoxDialog(
         }
         setLocationRelativeTo(ideFrame)
 
+        // Clipboard auto-detect: when opening in Add mode with no pre-existing JSON,
+        // check whether the clipboard holds valid JSON and pre-fill the editor if so.
+        if (jsonItem == null) {
+            tryPrefillFromClipboard()
+        }
+
         // Initial validation check
         updateIndicators(editor.document.text)
+    }
+
+    /**
+     * Reads the system clipboard. If the text is valid JSON it is written into
+     * the editor and the clipboard banner is made visible.
+     */
+    private fun tryPrefillFromClipboard() {
+        val clipText = CopyPasteManager.getInstance()
+            .getContents<String>(java.awt.datatransfer.DataFlavor.stringFlavor)
+            ?.trim()
+            ?: return
+
+        if (JsonUtils.validateJson(clipText) == null) {
+            // validateJson returns null when the JSON is valid
+            val formatted = JsonUtils.formatJson(clipText) ?: clipText
+            ApplicationManager.getApplication().runWriteAction {
+                editor.document.setText(formatted)
+            }
+            clipboardBanner.isVisible = true
+        }
     }
 
     /**
@@ -320,6 +361,7 @@ class JsonBoxDialog(
      * especially important for unit tests.
      */
     override fun dispose() {
+        Disposer.dispose(listenerDisposable)
         if (!editor.isDisposed) {
             EditorFactory.getInstance().releaseEditor(editor)
         }
@@ -341,7 +383,12 @@ class JsonBoxDialog(
 
         // ---------- Center: Editor and Status ----------
         val centerPanel = JPanel(BorderLayout())
-        centerPanel.add(createStatusPanel(), BorderLayout.NORTH)
+        val topInfoPanel = JPanel(BorderLayout()).apply {
+            isOpaque = false
+            add(createStatusPanel(), BorderLayout.WEST)
+            add(clipboardBanner, BorderLayout.EAST)
+        }
+        centerPanel.add(topInfoPanel, BorderLayout.NORTH)
         centerPanel.add(editor.component, BorderLayout.CENTER)
         panel.add(centerPanel, BorderLayout.CENTER)
 
