@@ -57,7 +57,7 @@ class JsonBoxQuickDialog(
 
     // ---- Left list ----
     private val allItems = mutableListOf<JsonItem>()
-    private val listModel = DefaultListModel<JsonItem>()
+    internal val listModel = DefaultListModel<JsonItem>()
     private val jsonList = JBList(listModel)
 
     // ---- Right preview editor (read-only) ----
@@ -76,6 +76,7 @@ class JsonBoxQuickDialog(
     val tagFilterComboBox = com.intellij.openapi.ui.ComboBox<String>().apply {
         addItem(JsonBoxBundle.message("jsonbox.quick.filter.all"))
         addActionListener {
+            lastSelectedTag = selectedItem as? String
             applyFilter(searchField.text)
         }
     }
@@ -295,17 +296,18 @@ class JsonBoxQuickDialog(
         val actionListeners = tagFilterComboBox.actionListeners
         actionListeners.forEach { tagFilterComboBox.removeActionListener(it) }
 
-        val currentSelection = tagFilterComboBox.selectedItem as? String
         tagFilterComboBox.removeAllItems()
         tagFilterComboBox.addItem(JsonBoxBundle.message("jsonbox.quick.filter.all"))
         
         val allUniqueTags = allItems.flatMap { it.tags }.distinct().sorted()
         allUniqueTags.forEach { tagFilterComboBox.addItem(it) }
         
-        if (currentSelection != null && allUniqueTags.contains(currentSelection)) {
-            tagFilterComboBox.selectedItem = currentSelection
+        val allOption = JsonBoxBundle.message("jsonbox.quick.filter.all")
+        if (lastSelectedTag != null && (lastSelectedTag == allOption || allUniqueTags.contains(lastSelectedTag))) {
+            tagFilterComboBox.selectedItem = lastSelectedTag
         } else {
             tagFilterComboBox.selectedIndex = 0
+            lastSelectedTag = null
         }
 
         actionListeners.forEach { tagFilterComboBox.addActionListener(it) }
@@ -540,5 +542,9 @@ class JsonBoxQuickDialog(
             JsonBoxBundle.message("jsonbox.dialog.copy.message"),
             JsonBoxBundle.message("jsonbox.dialog.copy.title")
         )
+    }
+
+    companion object {
+        var lastSelectedTag: String? = null
     }
 }

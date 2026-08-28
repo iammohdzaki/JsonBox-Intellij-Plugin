@@ -72,11 +72,11 @@ class JsonBoxDialog(
         jsonItem?.title ?: generateDefaultName()
     )
 
-    // Text field for tagging the JSON snippet (comma-separated)
-    private val jsonTagsField = JBTextField(
-        jsonItem?.tags?.joinToString(", ") ?: ""
+    // Text field for tagging the JSON snippet (with visual pills)
+    private val jsonTagsField = com.github.iammohdzaki.jsonbox.components.TagInputField(
+        jsonItem?.tags ?: emptyList()
     ).apply {
-        emptyText.text = JsonBoxBundle.message("jsonbox.dialog.label.tags")
+        inputField.emptyText.text = JsonBoxBundle.message("jsonbox.dialog.label.tags")
     }
 
     // Status label to show whether JSON is valid or invalid
@@ -212,7 +212,7 @@ class JsonBoxDialog(
         ) {
             val content = editor.document.text
             if (jsonNameField.text.isNotEmpty() && content.isNotEmpty()) {
-                val parsedTags = jsonTagsField.text.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                val parsedTags = jsonTagsField.getTags()
                 val newItem = if (editMode && jsonItem != null) {
                     jsonItem.copy(
                         json = content, 
