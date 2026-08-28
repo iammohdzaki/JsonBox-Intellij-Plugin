@@ -206,7 +206,7 @@ class JsonBoxDialog(
             val content = editor.document.text
             if (jsonNameField.text.isNotEmpty() && content.isNotEmpty()) {
                 val newItem = if (editMode && jsonItem != null) {
-                    jsonItem.copy(json = content, title = jsonNameField.text)
+                    jsonItem.copy(json = content, title = jsonNameField.text, updatedAt = System.currentTimeMillis())
                 } else {
                     JsonItem(title = jsonNameField.text, json = content)
                 }
