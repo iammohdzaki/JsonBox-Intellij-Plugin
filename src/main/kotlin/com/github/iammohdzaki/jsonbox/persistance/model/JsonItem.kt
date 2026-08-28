@@ -14,5 +14,6 @@ data class JsonItem(
     var id: String = UUID.randomUUID().toString(),
     var title: String = "",
     var json: String = "",
-    var updatedAt: Long = System.currentTimeMillis()
+    var updatedAt: Long = System.currentTimeMillis(),
+    var tags: List<String> = emptyList()
 )

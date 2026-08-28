@@ -73,6 +73,13 @@ class JsonBoxQuickDialog(
         textEditor.emptyText.text = JsonBoxBundle.message("jsonbox.search.hint")
     }
 
+    val tagFilterComboBox = com.intellij.openapi.ui.ComboBox<String>().apply {
+        addItem(JsonBoxBundle.message("jsonbox.quick.filter.all"))
+        addActionListener {
+            applyFilter(searchField.text)
+        }
+    }
+
     // -------------------
     // Initialization
     // -------------------
@@ -126,11 +133,15 @@ class JsonBoxQuickDialog(
             .createPanel()
 
 
+        val searchAndFilterPanel = JPanel(BorderLayout(0, 4))
+        searchAndFilterPanel.add(searchField, BorderLayout.NORTH)
+        searchAndFilterPanel.add(tagFilterComboBox, BorderLayout.SOUTH)
+
         val leftPanel = JPanel(BorderLayout(0, JBUI.scale(6))).apply {
             preferredSize = Dimension(JBUI.scale(260), 0)
             minimumSize = Dimension(JBUI.scale(220), 0)
 
-            add(searchField, BorderLayout.NORTH)
+            add(searchAndFilterPanel, BorderLayout.NORTH)
             add(decoratedListPanel, BorderLayout.CENTER)
         }
 
@@ -243,6 +254,14 @@ class JsonBoxQuickDialog(
                         value.title,
                         SimpleTextAttributes.REGULAR_ATTRIBUTES
                     )
+                    
+                    if (value.tags.isNotEmpty()) {
+                        component.append(
+                            "  [${value.tags.joinToString(", ")}]",
+                            SimpleTextAttributes.GRAYED_SMALL_ATTRIBUTES
+                        )
+                    }
+
                     // Show a subtle secondary label when the match was inside the JSON content.
                     if (matchTypeMap[value.id] == MatchType.CONTENT) {
                         component.append(
@@ -271,7 +290,27 @@ class JsonBoxQuickDialog(
     private fun loadItems() {
         allItems.clear()
         allItems.addAll(state.items)
-        applyFilter("")
+
+        // Prevent action listeners from firing during rebuild
+        val actionListeners = tagFilterComboBox.actionListeners
+        actionListeners.forEach { tagFilterComboBox.removeActionListener(it) }
+
+        val currentSelection = tagFilterComboBox.selectedItem as? String
+        tagFilterComboBox.removeAllItems()
+        tagFilterComboBox.addItem(JsonBoxBundle.message("jsonbox.quick.filter.all"))
+        
+        val allUniqueTags = allItems.flatMap { it.tags }.distinct().sorted()
+        allUniqueTags.forEach { tagFilterComboBox.addItem(it) }
+        
+        if (currentSelection != null && allUniqueTags.contains(currentSelection)) {
+            tagFilterComboBox.selectedItem = currentSelection
+        } else {
+            tagFilterComboBox.selectedIndex = 0
+        }
+
+        actionListeners.forEach { tagFilterComboBox.addActionListener(it) }
+
+        applyFilter(searchField.text)
     }
 
     // ---------------- Editor ----------------
@@ -326,12 +365,20 @@ class JsonBoxQuickDialog(
         listModel.clear()
         matchTypeMap.clear()
 
+        val selectedTag = tagFilterComboBox.selectedItem as? String
+        val filterByTag = selectedTag != null && selectedTag != JsonBoxBundle.message("jsonbox.quick.filter.all")
+
         val filteredItems: List<JsonItem>
-        if (query.isBlank()) {
+        if (query.isBlank() && !filterByTag) {
             filteredItems = allItems.toList()
         } else {
             val q = query.lowercase()
             filteredItems = allItems.filter { item ->
+                val matchesTag = if (filterByTag) item.tags.contains(selectedTag) else true
+                if (!matchesTag) return@filter false
+
+                if (query.isBlank()) return@filter true
+
                 when {
                     item.title.lowercase().contains(q) -> {
                         matchTypeMap[item.id] = MatchType.TITLE
@@ -339,6 +386,10 @@ class JsonBoxQuickDialog(
                     }
                     item.json.lowercase().contains(q) -> {
                         matchTypeMap[item.id] = MatchType.CONTENT
+                        true
+                    }
+                    item.tags.any { it.lowercase().contains(q) } -> {
+                        matchTypeMap[item.id] = MatchType.TITLE
                         true
                     }
                     else -> false
