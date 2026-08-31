@@ -18,8 +18,16 @@ import com.intellij.util.xmlb.XmlSerializerUtil
 )
 class JsonQuickListState : PersistentStateComponent<JsonQuickListState> {
 
+    /** Defines the available sorting behaviors for the Quick List. */
+    enum class SortType {
+        DATE_DESC, DATE_ASC, NAME_ASC, NAME_DESC
+    }
+
     /** The list of saved JSON items. */
     var items: MutableList<JsonItem> = mutableListOf()
+
+    /** The preferred sort type. */
+    var sortType: SortType = SortType.DATE_DESC
 
     /**
      * Adds a new JSON item or replaces an existing one with the same ID.

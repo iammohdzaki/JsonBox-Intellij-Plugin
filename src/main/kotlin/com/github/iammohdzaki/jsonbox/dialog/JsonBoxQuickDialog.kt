@@ -7,9 +7,12 @@ import com.github.iammohdzaki.jsonbox.utils.JsonBoxBundle
 import com.intellij.icons.AllIcons
 import com.intellij.json.JsonLanguage
 import com.intellij.openapi.actionSystem.ActionToolbar
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.Presentation
+import com.intellij.openapi.actionSystem.ToggleAction
 import com.intellij.openapi.actionSystem.impl.ActionButton
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
@@ -21,6 +24,7 @@ import com.intellij.openapi.fileTypes.SyntaxHighlighterFactory
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.wm.WindowManager
 import com.intellij.ui.*
 import com.intellij.ui.components.JBList
@@ -53,7 +57,7 @@ class JsonBoxQuickDialog(
 
     // ---- Left list ----
     private val allItems = mutableListOf<JsonItem>()
-    private val listModel = DefaultListModel<JsonItem>()
+    internal val listModel = DefaultListModel<JsonItem>()
     private val jsonList = JBList(listModel)
 
     // ---- Right preview editor (read-only) ----
@@ -67,6 +71,14 @@ class JsonBoxQuickDialog(
 
     val searchField = SearchTextField().apply {
         textEditor.emptyText.text = JsonBoxBundle.message("jsonbox.search.hint")
+    }
+
+    val tagFilterComboBox = com.intellij.openapi.ui.ComboBox<String>().apply {
+        addItem(JsonBoxBundle.message("jsonbox.quick.filter.all"))
+        addActionListener {
+            lastSelectedTag = selectedItem as? String
+            applyFilter(searchField.text)
+        }
     }
 
     // -------------------
@@ -118,13 +130,19 @@ class JsonBoxQuickDialog(
             .setAddAction { onAdd() }
             .setEditAction { onEdit() }
             .setRemoveAction { onDelete() }
+            .addExtraAction(createSortAction())
             .createPanel()
+
+
+        val searchAndFilterPanel = JPanel(BorderLayout(0, 4))
+        searchAndFilterPanel.add(searchField, BorderLayout.NORTH)
+        searchAndFilterPanel.add(tagFilterComboBox, BorderLayout.SOUTH)
 
         val leftPanel = JPanel(BorderLayout(0, JBUI.scale(6))).apply {
             preferredSize = Dimension(JBUI.scale(260), 0)
             minimumSize = Dimension(JBUI.scale(220), 0)
 
-            add(searchField, BorderLayout.NORTH)
+            add(searchAndFilterPanel, BorderLayout.NORTH)
             add(decoratedListPanel, BorderLayout.CENTER)
         }
 
@@ -237,6 +255,14 @@ class JsonBoxQuickDialog(
                         value.title,
                         SimpleTextAttributes.REGULAR_ATTRIBUTES
                     )
+                    
+                    if (value.tags.isNotEmpty()) {
+                        component.append(
+                            "  [${value.tags.joinToString(", ")}]",
+                            SimpleTextAttributes.GRAYED_SMALL_ATTRIBUTES
+                        )
+                    }
+
                     // Show a subtle secondary label when the match was inside the JSON content.
                     if (matchTypeMap[value.id] == MatchType.CONTENT) {
                         component.append(
@@ -265,7 +291,28 @@ class JsonBoxQuickDialog(
     private fun loadItems() {
         allItems.clear()
         allItems.addAll(state.items)
-        applyFilter("")
+
+        // Prevent action listeners from firing during rebuild
+        val actionListeners = tagFilterComboBox.actionListeners
+        actionListeners.forEach { tagFilterComboBox.removeActionListener(it) }
+
+        tagFilterComboBox.removeAllItems()
+        tagFilterComboBox.addItem(JsonBoxBundle.message("jsonbox.quick.filter.all"))
+        
+        val allUniqueTags = allItems.flatMap { it.tags }.distinct().sorted()
+        allUniqueTags.forEach { tagFilterComboBox.addItem(it) }
+        
+        val allOption = JsonBoxBundle.message("jsonbox.quick.filter.all")
+        if (lastSelectedTag != null && (lastSelectedTag == allOption || allUniqueTags.contains(lastSelectedTag))) {
+            tagFilterComboBox.selectedItem = lastSelectedTag
+        } else {
+            tagFilterComboBox.selectedIndex = 0
+            lastSelectedTag = null
+        }
+
+        actionListeners.forEach { tagFilterComboBox.addActionListener(it) }
+
+        applyFilter(searchField.text)
     }
 
     // ---------------- Editor ----------------
@@ -320,12 +367,20 @@ class JsonBoxQuickDialog(
         listModel.clear()
         matchTypeMap.clear()
 
+        val selectedTag = tagFilterComboBox.selectedItem as? String
+        val filterByTag = selectedTag != null && selectedTag != JsonBoxBundle.message("jsonbox.quick.filter.all")
+
         val filteredItems: List<JsonItem>
-        if (query.isBlank()) {
-            filteredItems = allItems
+        if (query.isBlank() && !filterByTag) {
+            filteredItems = allItems.toList()
         } else {
             val q = query.lowercase()
             filteredItems = allItems.filter { item ->
+                val matchesTag = if (filterByTag) item.tags.contains(selectedTag) else true
+                if (!matchesTag) return@filter false
+
+                if (query.isBlank()) return@filter true
+
                 when {
                     item.title.lowercase().contains(q) -> {
                         matchTypeMap[item.id] = MatchType.TITLE
@@ -335,12 +390,23 @@ class JsonBoxQuickDialog(
                         matchTypeMap[item.id] = MatchType.CONTENT
                         true
                     }
+                    item.tags.any { it.lowercase().contains(q) } -> {
+                        matchTypeMap[item.id] = MatchType.TITLE
+                        true
+                    }
                     else -> false
                 }
             }
         }
 
-        filteredItems.forEach { listModel.addElement(it) }
+        val sortedItems = when (state.sortType) {
+            JsonQuickListState.SortType.NAME_ASC -> filteredItems.sortedBy { it.title.lowercase() }
+            JsonQuickListState.SortType.NAME_DESC -> filteredItems.sortedByDescending { it.title.lowercase() }
+            JsonQuickListState.SortType.DATE_DESC -> filteredItems.sortedByDescending { it.updatedAt }
+            JsonQuickListState.SortType.DATE_ASC -> filteredItems.sortedBy { it.updatedAt }
+        }
+
+        sortedItems.forEach { listModel.addElement(it) }
 
         if (!listModel.isEmpty) {
             jsonList.selectedIndex = 0
@@ -352,6 +418,60 @@ class JsonBoxQuickDialog(
     }
 
     private fun selectedItem(): JsonItem? = jsonList.selectedValue
+
+    /**
+     * Creates a toolbar action that displays a popup menu for selecting the list's sort order.
+     */
+    private fun createSortAction(): AnActionButton {
+        return object : AnActionButton(
+            JsonBoxBundle.message("jsonbox.sort.title"),
+            AllIcons.ObjectBrowser.SortByType
+        ) {
+            override fun actionPerformed(e: AnActionEvent) {
+                val group = DefaultActionGroup()
+                group.add(SortOptionAction(JsonBoxBundle.message("jsonbox.sort.byNameAsc"), JsonQuickListState.SortType.NAME_ASC))
+                group.add(SortOptionAction(JsonBoxBundle.message("jsonbox.sort.byNameDesc"), JsonQuickListState.SortType.NAME_DESC))
+                group.add(SortOptionAction(JsonBoxBundle.message("jsonbox.sort.byDateDesc"), JsonQuickListState.SortType.DATE_DESC))
+                group.add(SortOptionAction(JsonBoxBundle.message("jsonbox.sort.byDateAsc"), JsonQuickListState.SortType.DATE_ASC))
+
+                val popup = JBPopupFactory.getInstance()
+                    .createActionGroupPopup(
+                        JsonBoxBundle.message("jsonbox.sort.title"),
+                        group,
+                        e.dataContext,
+                        JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
+                        true
+                    )
+                val component = e.inputEvent?.component
+                if (component != null) {
+                    popup.showUnderneathOf(component)
+                } else {
+                    popup.showInBestPositionFor(e.dataContext)
+                }
+            }
+        }
+    }
+
+    /**
+     * Represents a single toggleable sorting option in the sort popup menu.
+     */
+    private inner class SortOptionAction(
+        text: String,
+        private val sortType: JsonQuickListState.SortType
+    ) : ToggleAction(text) {
+        override fun isSelected(e: AnActionEvent): Boolean {
+            return state.sortType == sortType
+        }
+        override fun setSelected(e: AnActionEvent, stateVal: Boolean) {
+            if (stateVal) {
+                state.sortType = sortType
+                loadItems()
+            }
+        }
+        override fun getActionUpdateThread(): ActionUpdateThread {
+            return ActionUpdateThread.BGT
+        }
+    }
 
     /**
      * Opens the editor dialog in 'Add' mode.
@@ -422,5 +542,9 @@ class JsonBoxQuickDialog(
             JsonBoxBundle.message("jsonbox.dialog.copy.message"),
             JsonBoxBundle.message("jsonbox.dialog.copy.title")
         )
+    }
+
+    companion object {
+        var lastSelectedTag: String? = null
     }
 }

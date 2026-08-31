@@ -72,6 +72,13 @@ class JsonBoxDialog(
         jsonItem?.title ?: generateDefaultName()
     )
 
+    // Text field for tagging the JSON snippet (with visual pills)
+    private val jsonTagsField = com.github.iammohdzaki.jsonbox.components.TagInputField(
+        jsonItem?.tags ?: emptyList()
+    ).apply {
+        inputField.emptyText.text = JsonBoxBundle.message("jsonbox.dialog.label.tags")
+    }
+
     // Status label to show whether JSON is valid or invalid
     private val statusLabel: JLabel = JLabel().apply {
         foreground = UIUtil.getContextHelpForeground()
@@ -205,10 +212,20 @@ class JsonBoxDialog(
         ) {
             val content = editor.document.text
             if (jsonNameField.text.isNotEmpty() && content.isNotEmpty()) {
+                val parsedTags = jsonTagsField.getTags()
                 val newItem = if (editMode && jsonItem != null) {
-                    jsonItem.copy(json = content, title = jsonNameField.text)
+                    jsonItem.copy(
+                        json = content, 
+                        title = jsonNameField.text, 
+                        updatedAt = System.currentTimeMillis(),
+                        tags = parsedTags
+                    )
                 } else {
-                    JsonItem(title = jsonNameField.text, json = content)
+                    JsonItem(
+                        title = jsonNameField.text, 
+                        json = content, 
+                        tags = parsedTags
+                    )
                 }
 
                 if (onSave != null) {
@@ -382,11 +399,20 @@ class JsonBoxDialog(
         val panel = JBPanel<JBPanel<*>>(BorderLayout(10, 10))
         panel.border = JBUI.Borders.empty(10)
 
-        // ---------- Top: JSON name ----------
+        // ---------- Top: JSON name and tags ----------
+        val topFieldsPanel = JBPanel<JBPanel<*>>(BorderLayout(5, 5))
+
         val namePanel = JBPanel<JBPanel<*>>(BorderLayout(5, 5))
         namePanel.add(JLabel(JsonBoxBundle.message("jsonbox.dialog.label.name")), BorderLayout.WEST)
         namePanel.add(jsonNameField, BorderLayout.CENTER)
-        panel.add(namePanel, BorderLayout.NORTH)
+        
+        val tagsPanel = JBPanel<JBPanel<*>>(BorderLayout(5, 5))
+        tagsPanel.add(JLabel(JsonBoxBundle.message("jsonbox.dialog.label.tags")), BorderLayout.WEST)
+        tagsPanel.add(jsonTagsField, BorderLayout.CENTER)
+
+        topFieldsPanel.add(namePanel, BorderLayout.NORTH)
+        topFieldsPanel.add(tagsPanel, BorderLayout.SOUTH)
+        panel.add(topFieldsPanel, BorderLayout.NORTH)
 
         // ---------- Center: Editor and Status ----------
         val centerPanel = JPanel(BorderLayout())
