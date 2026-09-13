@@ -93,10 +93,12 @@ class TagInputField(initialTags: List<String> = emptyList()) : JPanel() {
     }
 
     fun commitTag() {
-        val text = inputField.text.trim().removeSuffix(",")
-        if (text.isNotEmpty() && !tags.contains(text)) {
-            addTag(text)
-        }
+        inputField.text
+            .split(',')
+            .asSequence()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .forEach(::addTag)
         inputField.text = ""
     }
 
