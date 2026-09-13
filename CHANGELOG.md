@@ -6,6 +6,10 @@
 
 ## [0.0.10]
 
+### Added
+
+- Tag Input Field now displays intelligent auto-suggestions dynamically as you type, referencing your previously added tags from the Quick List to prevent duplicate variations.
+
 ### Fixed
 
 - Resolved deprecation warnings for `ToolbarDecorator.addExtraAction` and `DynamicBundle` constructors

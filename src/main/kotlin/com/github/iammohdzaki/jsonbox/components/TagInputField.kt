@@ -9,14 +9,20 @@ import java.awt.event.KeyEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.*
+import javax.swing.event.DocumentEvent
+import javax.swing.event.DocumentListener
 import javax.swing.border.EmptyBorder
 
 /**
  * A custom Swing component that acts as a text input for tags.
  * When a user types a comma or presses Enter, the text is converted into a visual "pill".
  */
-class TagInputField(initialTags: List<String> = emptyList()) : JPanel() {
+class TagInputField(
+    initialTags: List<String> = emptyList(),
+    private val availableTags: Set<String> = emptySet()
+) : JPanel() {
     private val tags = mutableListOf<String>()
+    private val suggestionMenu = JPopupMenu()
     
     val inputField = JBTextField().apply {
         border = JBUI.Borders.empty()
@@ -63,6 +69,11 @@ class TagInputField(initialTags: List<String> = emptyList()) : JPanel() {
             }
             
             override fun keyPressed(e: KeyEvent) {
+                if (e.keyCode == KeyEvent.VK_DOWN && suggestionMenu.isVisible) {
+                    suggestionMenu.requestFocusInWindow()
+                    e.consume()
+                    return
+                }
                 if (e.keyCode == KeyEvent.VK_ENTER) {
                     e.consume()
                     commitTag()
@@ -73,6 +84,16 @@ class TagInputField(initialTags: List<String> = emptyList()) : JPanel() {
             }
         })
         
+        inputField.document.addDocumentListener(object : DocumentListener {
+            override fun insertUpdate(e: DocumentEvent) {
+                SwingUtilities.invokeLater { showSuggestions() }
+            }
+            override fun removeUpdate(e: DocumentEvent) {
+                SwingUtilities.invokeLater { showSuggestions() }
+            }
+            override fun changedUpdate(e: DocumentEvent) {}
+        })
+        
         addMouseListener(object : MouseAdapter() {
             override fun mouseClicked(e: MouseEvent) {
                 inputField.requestFocusInWindow()
@@ -80,6 +101,37 @@ class TagInputField(initialTags: List<String> = emptyList()) : JPanel() {
         })
         
         refreshUI()
+    }
+
+    private fun showSuggestions() {
+        val text = inputField.text.trim().lowercase().removeSuffix(",")
+        suggestionMenu.removeAll()
+        if (text.isEmpty() || availableTags.isEmpty()) {
+            suggestionMenu.isVisible = false
+            return
+        }
+        val matches = availableTags.filter { it.lowercase().startsWith(text) && !tags.contains(it) }
+        if (matches.isEmpty()) {
+            suggestionMenu.isVisible = false
+            return
+        }
+        
+        matches.take(6).forEach { match ->
+            val item = JMenuItem(match)
+            item.addActionListener {
+                addTag(match)
+                inputField.text = ""
+                suggestionMenu.isVisible = false
+            }
+            suggestionMenu.add(item)
+        }
+        
+        if (!suggestionMenu.isVisible) {
+            suggestionMenu.show(inputField, 0, inputField.height)
+        } else {
+            suggestionMenu.pack()
+        }
+        inputField.requestFocusInWindow()
     }
 
     private fun updateHint() {
