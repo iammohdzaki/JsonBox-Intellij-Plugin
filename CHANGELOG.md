@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+## [0.0.10]
+
+### Fixed
+
+- Resolved deprecation warnings for `ToolbarDecorator.addExtraAction` and `DynamicBundle` constructors
+- Prepared plugin for future IntelliJ platform updates
+
 ## [0.0.9]
 
 ### Added

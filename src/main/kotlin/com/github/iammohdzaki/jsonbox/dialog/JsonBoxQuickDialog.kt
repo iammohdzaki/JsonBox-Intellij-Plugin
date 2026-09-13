@@ -422,8 +422,9 @@ class JsonBoxQuickDialog(
     /**
      * Creates a toolbar action that displays a popup menu for selecting the list's sort order.
      */
-    private fun createSortAction(): AnActionButton {
-        return object : AnActionButton(
+    private fun createSortAction(): AnAction {
+        return object : AnAction(
+            JsonBoxBundle.message("jsonbox.sort.title"),
             JsonBoxBundle.message("jsonbox.sort.title"),
             AllIcons.ObjectBrowser.SortByType
         ) {
