@@ -30,7 +30,7 @@ object JsonEditorFactory {
      * Creates an EditorEx for given file or scratch text.
      * Supports syntax highlighting, line numbers, folding.
      */
-    fun createEditor(project: Project, virtualFile: VirtualFile?, initialText: String = ""): EditorEx {
+    fun createEditor(project: Project, virtualFile: VirtualFile?, initialText: String = "", isViewer: Boolean = false): EditorEx {
         val lightFile = LightVirtualFile("temp.json", JsonLanguage.INSTANCE, initialText)
         
         // PSI and Document access must be wrapped in a ReadAction
@@ -42,8 +42,8 @@ object JsonEditorFactory {
         val editor = EditorFactory.getInstance().createEditor(
             document,
             project,
-            FileTypeManager.getInstance().getFileTypeByExtension("json"),
-            false
+            lightFile,
+            isViewer
         ) as EditorEx
 
         val scheme = EditorColorsManager.getInstance().globalScheme
@@ -53,7 +53,7 @@ object JsonEditorFactory {
         editor.settings.isFoldingOutlineShown = true
 
         val syntaxHighlighter =
-            SyntaxHighlighterFactory.getSyntaxHighlighter(JsonLanguage.INSTANCE, project, virtualFile)
+            SyntaxHighlighterFactory.getSyntaxHighlighter(JsonLanguage.INSTANCE, project, lightFile)
         editor.highlighter = com.intellij.openapi.editor.ex.util.LexerEditorHighlighter(syntaxHighlighter, scheme)
 
         return editor

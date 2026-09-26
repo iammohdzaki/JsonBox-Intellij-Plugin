@@ -16,6 +16,7 @@ import com.intellij.openapi.actionSystem.ToggleAction
 import com.intellij.openapi.actionSystem.impl.ActionButton
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
+import com.github.iammohdzaki.jsonbox.editor.JsonEditorFactory
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.editor.colors.EditorColorsManager
 import com.intellij.openapi.editor.ex.EditorEx
@@ -61,13 +62,7 @@ class JsonBoxQuickDialog(
     private val jsonList = JBList(listModel)
 
     // ---- Right preview editor (read-only) ----
-    private val previewEditor: EditorEx =
-        EditorFactory.getInstance().createEditor(
-            EditorFactory.getInstance().createDocument(""),
-            project,
-            FileTypeManager.getInstance().getFileTypeByExtension("json"),
-            true
-        ) as EditorEx
+    private val previewEditor: EditorEx = JsonEditorFactory.createEditor(project, null, "", isViewer = true)
 
     val searchField = SearchTextField().apply {
         textEditor.emptyText.text = JsonBoxBundle.message("jsonbox.search.hint")
@@ -318,16 +313,6 @@ class JsonBoxQuickDialog(
     // ---------------- Editor ----------------
 
     private fun initEditor() {
-        previewEditor.settings.isLineNumbersShown = true
-        previewEditor.settings.isFoldingOutlineShown = true
-        val scheme = EditorColorsManager.getInstance().globalScheme
-        previewEditor.colorsScheme = scheme
-        previewEditor.backgroundColor = scheme.defaultBackground
-        val syntaxHighlighter =
-            SyntaxHighlighterFactory.getSyntaxHighlighter(JsonLanguage.INSTANCE, project, null)
-        previewEditor.highlighter =
-            com.intellij.openapi.editor.ex.util.LexerEditorHighlighter(syntaxHighlighter, scheme)
-
         installEditorHeader()
     }
 
