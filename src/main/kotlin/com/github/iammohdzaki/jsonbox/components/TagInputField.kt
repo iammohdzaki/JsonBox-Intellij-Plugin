@@ -71,6 +71,10 @@ class TagInputField(
             override fun keyPressed(e: KeyEvent) {
                 if (e.keyCode == KeyEvent.VK_DOWN && suggestionMenu.isVisible) {
                     suggestionMenu.requestFocusInWindow()
+                    val firstItem = suggestionMenu.components.firstOrNull() as? JMenuItem
+                    if (firstItem != null) {
+                        MenuSelectionManager.defaultManager().selectedPath = arrayOf(suggestionMenu, firstItem)
+                    }
                     e.consume()
                     return
                 }
@@ -104,7 +108,7 @@ class TagInputField(
     }
 
     private fun showSuggestions() {
-        val text = inputField.text.trim().lowercase().removeSuffix(",")
+        val text = inputField.text.split(',').last().trim().lowercase()
         suggestionMenu.removeAll()
         if (text.isEmpty() || availableTags.isEmpty()) {
             suggestionMenu.isVisible = false
@@ -119,6 +123,12 @@ class TagInputField(
         matches.take(6).forEach { match ->
             val item = JMenuItem(match)
             item.addActionListener {
+                val parts = inputField.text.split(',')
+                parts.dropLast(1)
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+                    .forEach(::addTag)
+                
                 addTag(match)
                 inputField.text = ""
                 suggestionMenu.isVisible = false
