@@ -9,6 +9,7 @@
 ### Added
 
 - Tag Input Field now displays intelligent auto-suggestions dynamically as you type, referencing your previously added tags from the Quick List to prevent duplicate variations.
+- Activated true IntelliJ JSON code folding and PSI features for all snippet editors, allowing users to collapse and expand large JSON objects and arrays interactively.
 
 ### Fixed
 
