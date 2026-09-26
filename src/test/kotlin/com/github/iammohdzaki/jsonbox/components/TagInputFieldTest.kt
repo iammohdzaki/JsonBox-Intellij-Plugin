@@ -50,4 +50,52 @@ class TagInputFieldTest : BasePlatformTestCase() {
         assertEquals(1, tags.size)
         assertEquals("typing", tags[0])
     }
+
+    fun testTagInputField_commitMultipleTags() {
+        if (GraphicsEnvironment.isHeadless()) return
+        val tagField = TagInputField()
+        
+        tagField.inputField.text = "prod, api, dev"
+        tagField.commitTag()
+        
+        val tags = tagField.getTags()
+        assertEquals(3, tags.size)
+        assertEquals("prod", tags[0])
+        assertEquals("api", tags[1])
+        assertEquals("dev", tags[2])
+    }
+
+    fun testTagInputField_suggestionDownAndEnter() {
+        if (GraphicsEnvironment.isHeadless()) return
+        val availableTags = setOf("production", "api-server")
+        val tagField = TagInputField(availableTags = availableTags)
+        
+        tagField.inputField.text = "dev, produ"
+        
+        // Trigger showSuggestions via reflection (catch exception thrown by JPopupMenu.show in headless mode)
+        val method = TagInputField::class.java.getDeclaredMethod("showSuggestions")
+        method.isAccessible = true
+        try {
+            method.invoke(tagField)
+        } catch (e: java.lang.reflect.InvocationTargetException) {
+            if (e.cause !is java.awt.IllegalComponentStateException) throw e
+        }
+        
+        // Get the suggestionMenu
+        val menuField = TagInputField::class.java.getDeclaredField("suggestionMenu")
+        menuField.isAccessible = true
+        val menu = menuField.get(tagField) as javax.swing.JPopupMenu
+        
+        assertEquals(1, menu.componentCount)
+        val menuItem = menu.getComponent(0) as javax.swing.JMenuItem
+        assertEquals("production", menuItem.text)
+        
+        // Simulate pressing Enter on the menu item
+        menuItem.doClick()
+        
+        val tags = tagField.getTags()
+        assertEquals(2, tags.size)
+        assertEquals("dev", tags[0])
+        assertEquals("production", tags[1])
+    }
 }

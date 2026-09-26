@@ -74,9 +74,10 @@ class JsonBoxDialog(
 
     // Text field for tagging the JSON snippet (with visual pills)
     private val jsonTagsField = com.github.iammohdzaki.jsonbox.components.TagInputField(
-        jsonItem?.tags ?: emptyList()
+        jsonItem?.tags ?: emptyList(),
+        project.service<com.github.iammohdzaki.jsonbox.persistance.JsonQuickListState>().items.flatMap { it.tags }.toSet()
     ).apply {
-        inputField.emptyText.text = JsonBoxBundle.message("jsonbox.dialog.label.tags")
+        hintText = JsonBoxBundle.message("jsonbox.dialog.label.tags")
     }
 
     // Status label to show whether JSON is valid or invalid

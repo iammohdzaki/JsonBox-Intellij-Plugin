@@ -8,7 +8,7 @@ private const val BUNDLE = "messages.JsonBoxBundle"
 /**
  * Access to the plugin's resource bundle for localized strings.
  */
-object JsonBoxBundle : DynamicBundle(BUNDLE) {
+object JsonBoxBundle : DynamicBundle(JsonBoxBundle::class.java, BUNDLE) {
 
     /**
      * Retrieves a localized message for the given key and optional parameters.
